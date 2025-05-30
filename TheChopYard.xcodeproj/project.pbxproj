@@ -7,12 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		7670A87E2DC70E2500A5BD9F /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 7670A87D2DC70E2500A5BD9F /* FirebaseAnalytics */; };
-		7670A8832DC70FB800A5BD9F /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 7670A8822DC70FB800A5BD9F /* FirebaseAuth */; };
-		7670A8852DC70FB800A5BD9F /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 7670A8842DC70FB800A5BD9F /* FirebaseFirestore */; };
-		7670A8872DC70FB800A5BD9F /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 7670A8862DC70FB800A5BD9F /* FirebaseMessaging */; };
-		7670A8892DC70FB800A5BD9F /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 7670A8882DC70FB800A5BD9F /* FirebaseStorage */; };
-		7670A88E2DC713CE00A5BD9F /* SDWebImageSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = 7670A88D2DC713CE00A5BD9F /* SDWebImageSwiftUI */; };
+		7679BE842DE012FC00AFD124 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 7670A87D2DC70E2500A5BD9F /* FirebaseAnalytics */; };
+		7679BE852DE012FC00AFD124 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 7670A8822DC70FB800A5BD9F /* FirebaseAuth */; };
+		7679BE862DE012FC00AFD124 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 7670A8842DC70FB800A5BD9F /* FirebaseFirestore */; };
+		7679BE872DE012FC00AFD124 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 7670A8862DC70FB800A5BD9F /* FirebaseMessaging */; };
+		7679BE882DE012FC00AFD124 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 7670A8882DC70FB800A5BD9F /* FirebaseStorage */; };
+		7679BFAB2DE2DF1B00AFD124 /* SDWebImageSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = 7679BFAA2DE2DF1B00AFD124 /* SDWebImageSwiftUI */; settings = {ATTRIBUTES = (Required, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -38,9 +38,22 @@
 		7670A8632DC708F300A5BD9F /* TheChopYardUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TheChopYardUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		761B15C22DC7FF220063EC9D /* Exceptions for "TheChopYard" folder in "TheChopYard" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 7670A84B2DC708F200A5BD9F /* TheChopYard */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		7670A84E2DC708F200A5BD9F /* TheChopYard */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				761B15C22DC7FF220063EC9D /* Exceptions for "TheChopYard" folder in "TheChopYard" target */,
+			);
 			path = TheChopYard;
 			sourceTree = "<group>";
 		};
@@ -61,12 +74,12 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				7670A88E2DC713CE00A5BD9F /* SDWebImageSwiftUI in Frameworks */,
-				7670A8872DC70FB800A5BD9F /* FirebaseMessaging in Frameworks */,
-				7670A87E2DC70E2500A5BD9F /* FirebaseAnalytics in Frameworks */,
-				7670A8832DC70FB800A5BD9F /* FirebaseAuth in Frameworks */,
-				7670A8892DC70FB800A5BD9F /* FirebaseStorage in Frameworks */,
-				7670A8852DC70FB800A5BD9F /* FirebaseFirestore in Frameworks */,
+				7679BFAB2DE2DF1B00AFD124 /* SDWebImageSwiftUI in Frameworks */,
+				7679BE882DE012FC00AFD124 /* FirebaseStorage in Frameworks */,
+				7679BE872DE012FC00AFD124 /* FirebaseMessaging in Frameworks */,
+				7679BE862DE012FC00AFD124 /* FirebaseFirestore in Frameworks */,
+				7679BE852DE012FC00AFD124 /* FirebaseAuth in Frameworks */,
+				7679BE842DE012FC00AFD124 /* FirebaseAnalytics in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -94,6 +107,7 @@
 				7670A85C2DC708F300A5BD9F /* TheChopYardTests */,
 				7670A8662DC708F300A5BD9F /* TheChopYardUITests */,
 				7670A84D2DC708F200A5BD9F /* Products */,
+				7AE8DBABF2EF50BD93617371 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -105,6 +119,13 @@
 				7670A8632DC708F300A5BD9F /* TheChopYardUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		7AE8DBABF2EF50BD93617371 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -132,7 +153,7 @@
 				7670A8842DC70FB800A5BD9F /* FirebaseFirestore */,
 				7670A8862DC70FB800A5BD9F /* FirebaseMessaging */,
 				7670A8882DC70FB800A5BD9F /* FirebaseStorage */,
-				7670A88D2DC713CE00A5BD9F /* SDWebImageSwiftUI */,
+				7679BFAA2DE2DF1B00AFD124 /* SDWebImageSwiftUI */,
 			);
 			productName = TheChopYard;
 			productReference = 7670A84C2DC708F200A5BD9F /* TheChopYard.app */;
@@ -155,8 +176,6 @@
 				7670A85C2DC708F300A5BD9F /* TheChopYardTests */,
 			);
 			name = TheChopYardTests;
-			packageProductDependencies = (
-			);
 			productName = TheChopYardTests;
 			productReference = 7670A8592DC708F300A5BD9F /* TheChopYardTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -178,8 +197,6 @@
 				7670A8662DC708F300A5BD9F /* TheChopYardUITests */,
 			);
 			name = TheChopYardUITests;
-			packageProductDependencies = (
-			);
 			productName = TheChopYardUITests;
 			productReference = 7670A8632DC708F300A5BD9F /* TheChopYardUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -218,7 +235,8 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				7670A87C2DC70E2500A5BD9F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
-				7670A88C2DC713CE00A5BD9F /* XCRemoteSwiftPackageReference "SDWebImageSwiftUI" */,
+				76E569082DD14D610092FBE3 /* XCRemoteSwiftPackageReference "ios-maps-sdk" */,
+				7679BFA92DE2DD9E00AFD124 /* XCRemoteSwiftPackageReference "SDWebImageSwiftUI" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 7670A84D2DC708F200A5BD9F /* Products */;
@@ -333,6 +351,7 @@
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				FRAMEWORK_SEARCH_PATHS = "$(inherited)";
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -347,7 +366,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -355,6 +374,7 @@
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SYSTEM_FRAMEWORK_SEARCH_PATHS = "$(inherited)";
 			};
 			name = Debug;
 		};
@@ -397,6 +417,7 @@
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				FRAMEWORK_SEARCH_PATHS = "$(inherited)";
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -405,12 +426,13 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SYSTEM_FRAMEWORK_SEARCH_PATHS = "$(inherited)";
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
@@ -420,16 +442,29 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = G2547F68T5;
 				ENABLE_PREVIEWS = YES;
+				FRAMEWORK_SEARCH_PATHS = "$(inherited)";
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
+				INFOPLIST_FILE = TheChopYard/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "The Chop Yard";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.shopping";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "We need your location to show nearby listings.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "We need access to your photo library so you can add images to your listing.";
+				INFOPLIST_KEY_NSPrincipalClass = "";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UIRequiresFullScreen = YES;
+				INFOPLIST_KEY_UIStatusBarHidden = YES;
+				INFOPLIST_KEY_UIStatusBarStyle = "";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 16;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -437,6 +472,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.thechopyard.TheChopYard;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -448,16 +484,29 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = G2547F68T5;
 				ENABLE_PREVIEWS = YES;
+				FRAMEWORK_SEARCH_PATHS = "$(inherited)";
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(inherited)";
+				INFOPLIST_FILE = TheChopYard/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "The Chop Yard";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.shopping";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "We need your location to show nearby listings.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "We need access to your photo library so you can add images to your listing.";
+				INFOPLIST_KEY_NSPrincipalClass = "";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UIRequiresFullScreen = YES;
+				INFOPLIST_KEY_UIStatusBarHidden = YES;
+				INFOPLIST_KEY_UIStatusBarStyle = "";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 16;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -465,6 +514,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.thechopyard.TheChopYard;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -593,12 +643,20 @@
 				minimumVersion = 11.12.0;
 			};
 		};
-		7670A88C2DC713CE00A5BD9F /* XCRemoteSwiftPackageReference "SDWebImageSwiftUI" */ = {
+		7679BFA92DE2DD9E00AFD124 /* XCRemoteSwiftPackageReference "SDWebImageSwiftUI" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/SDWebImage/SDWebImageSwiftUI";
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 3.1.3;
+			};
+		};
+		76E569082DD14D610092FBE3 /* XCRemoteSwiftPackageReference "ios-maps-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googlemaps/ios-maps-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.4.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -629,9 +687,9 @@
 			package = 7670A87C2DC70E2500A5BD9F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseStorage;
 		};
-		7670A88D2DC713CE00A5BD9F /* SDWebImageSwiftUI */ = {
+		7679BFAA2DE2DF1B00AFD124 /* SDWebImageSwiftUI */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 7670A88C2DC713CE00A5BD9F /* XCRemoteSwiftPackageReference "SDWebImageSwiftUI" */;
+			package = 7679BFA92DE2DD9E00AFD124 /* XCRemoteSwiftPackageReference "SDWebImageSwiftUI" */;
 			productName = SDWebImageSwiftUI;
 		};
 /* End XCSwiftPackageProductDependency section */

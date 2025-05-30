@@ -1,0 +1,26 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ✅ Listing images: publicly viewable, uploadable only by authenticated users
+    match /listing_images/{imageId} {
+      // Public read access (anyone can see listing photos)
+      allow read: if true;
+
+      // Only authenticated users can upload
+      allow write: if request.auth != null;
+    }
+
+    // 🧪 (Optional) User profile images: private to owner only
+    match /profile_pictures/{userId}/{imageId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId;
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Default fallback — deny access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

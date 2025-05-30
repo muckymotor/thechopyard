@@ -15,17 +15,15 @@
 	<key>STORAGE_BUCKET</key>
 	<string>the-chop-yard.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
-	<false/>
+	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
-	<false/>
+	<false></false>
 	<key>IS_APPINVITE_ENABLED</key>
-	<true/>
+	<true></true>
 	<key>IS_GCM_ENABLED</key>
-	<true/>
+	<true></true>
 	<key>IS_SIGNIN_ENABLED</key>
-	<true/>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>We need your location to show nearby chopper parts.</string>
+	<true></true>
 	<key>GOOGLE_APP_ID</key>
 	<string>1:509751512314:ios:27c13fb66aceb599c20d43</string>
 </dict>

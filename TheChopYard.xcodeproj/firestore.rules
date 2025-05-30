@@ -1,0 +1,132 @@
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // General auth rule
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Listings
+    match /listings/{listingId} {
+      allow read: if true;
+
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly([
+          'title',
+          'price',
+          'description',
+          'locationName',
+          'latitude',
+          'longitude',
+          'imageUrls',
+          'sellerId',
+          'timestamp',
+          'category'
+        ])
+        && request.resource.data.title is string
+        && request.resource.data.price is number
+        && request.resource.data.description is string
+        && request.resource.data.locationName is string
+        && request.resource.data.latitude is number
+        && request.resource.data.longitude is number
+        && request.resource.data.imageUrls is list
+        && request.resource.data.sellerId == request.auth.uid
+        && request.resource.data.timestamp is timestamp
+        && request.resource.data.category is string
+        && request.resource.data.category in [
+          "Air Intake & Fuel Systems",
+          "Brakes",
+          "Drivetrain & Transmission",
+          "Electrical & Wiring",
+          "Engine",
+          "Exhaust",
+          "Fenders",
+          "Frame & Chassis",
+          "Gas Tanks",
+          "Gauge & Instruments",
+          "Handlebars & Controls",
+          "Lighting",
+          "Oil Tanks",
+          "Seats",
+          "Suspension",
+          "Tires",
+          "Wheels/Wheel Components",
+          "Motorcycles",
+          "Other",
+        ];
+
+      allow update: if request.auth != null
+        && request.auth.uid == resource.data.sellerId
+        && request.resource.data.keys().hasOnly([
+          'title',
+          'price',
+          'description',
+          'locationName',
+          'latitude',
+          'longitude',
+          'imageUrls',
+          'sellerId',
+          'timestamp',
+          'category'
+        ])
+        && request.resource.data.title is string
+        && request.resource.data.price is number
+        && request.resource.data.description is string
+        && request.resource.data.locationName is string
+        && request.resource.data.latitude is number
+        && request.resource.data.longitude is number
+        && request.resource.data.imageUrls is list
+        && request.resource.data.sellerId == request.auth.uid
+        && request.resource.data.timestamp is timestamp
+        && request.resource.data.category is string
+        && request.resource.data.category in [
+          "Air Intake & Fuel Systems",
+          "Brakes",
+          "Drivetrain & Transmission",
+          "Electrical & Wiring",
+          "Engine",
+          "Exhaust",
+          "Fenders",
+          "Frame & Chassis",
+          "Gas Tanks",
+          "Gauge & Instruments",
+          "Handlebars & Controls",
+          "Lighting",
+          "Oil Tanks",
+          "Seats",
+          "Suspension",
+          "Tires",
+          "Wheels/Wheel Components",
+          "Motorcycles",
+          "Other",
+        ];
+
+      allow delete: if request.auth != null && request.auth.uid == resource.data.sellerId;
+    }
+
+    // Users
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Chats
+    match /chats/{chatId} {
+      allow read, write: if request.auth != null && request.auth.uid in resource.data.participants;
+
+      match /messages/{messageId} {
+        allow read, write: if request.auth != null &&
+                           request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+      }
+    }
+
+    // Usernames
+    match /usernames/{username} {
+      allow read: if true;
+
+      allow write: if request.resource.data.keys().hasOnly(["reserved"]) && request.resource.data.reserved == true;
+
+      allow write: if request.auth != null && request.resource.data.uid == request.auth.uid;
+    }
+  }
+}
+
