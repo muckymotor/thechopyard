@@ -4,13 +4,14 @@ import FirebaseStorage
 import FirebaseFirestore
 import FirebaseAuth
 import CoreLocation
+import Contacts
 
 @available(iOS 16.0, *)
 struct CreateListingView: View {
     @Environment(\.dismiss) var dismiss
     @State private var title = ""
     @State private var price = ""
-    @State private var listingDescription = "" // Renamed from 'description'
+    @State private var listingDescription = ""
     @State private var locationText = ""
     @State private var selectedCoordinate: CLLocationCoordinate2D?
     @State private var selectedPhotoItems: [PhotosPickerItem] = []
@@ -18,6 +19,7 @@ struct CreateListingView: View {
     @State private var isSubmitting = false
     @State private var showAlert = false
     @State private var alertMessage = ""
+    @State private var alertTitle = "Error"
     @State private var isShowingLocationSearch = false
     @State private var selectedCategory: String = ""
 
@@ -29,7 +31,7 @@ struct CreateListingView: View {
     ]
 
     private let db = Firestore.firestore()
-    private let storage = Storage.storage().reference()
+    private let storage = Storage.storage().reference(forURL: "gs://the-chop-yard.firebasestorage.app")
 
     var body: some View {
         NavigationView {
@@ -39,27 +41,43 @@ struct CreateListingView: View {
                 submitButtonSection
             }
             .navigationTitle("Create Listing")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+            }
         }
         .sheet(isPresented: $isShowingLocationSearch) {
             LocationSearchView { selectedPlace, coordinate in
-                locationText = selectedPlace
-                selectedCoordinate = coordinate
+                Task {
+                    locationText = await extractCityAndState(from: selectedPlace)
+                    selectedCoordinate = coordinate
+                }
             }
         }
-        .onChange(of: selectedPhotoItems) { _ in
+        .onChange(of: selectedPhotoItems) { newItems in
             Task {
                 var loadedImages: [UIImage] = []
-                for item in selectedPhotoItems {
+                for item in newItems {
                     if let data = try? await item.loadTransferable(type: Data.self),
-                       let image = UIImage(data: data) {
-                        loadedImages.append(image)
+                       let image = UIImage(data: data),
+                       let compressed = image.compressedJPEG() {
+                        loadedImages.append(UIImage(data: compressed) ?? image)
                     }
                 }
                 uiImages = loadedImages
             }
         }
-        .alert(isPresented: $showAlert) {
-             Alert(title: Text(alertMessage.contains("successfully") ? "Success" : "Error"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
+        .alert(alertTitle, isPresented: $showAlert) {
+            Button("OK") {
+                if alertTitle == "Success" {
+                    dismiss()
+                }
+            }
+        } message: {
+            Text(alertMessage)
         }
     }
 
@@ -68,63 +86,77 @@ struct CreateListingView: View {
             TextField("Title", text: $title)
             TextField("Price", text: $price).keyboardType(.decimalPad)
             TextField("Description", text: $listingDescription, axis: .vertical)
-                 .lineLimit(3...6)
+                .lineLimit(3...6)
             locationField
-            categorySelectionSection // This is the corrected part
+            categorySelectionSection
         }
     }
 
     private var locationField: some View {
         HStack {
-            TextField("Location", text: $locationText).disabled(true)
+            Text(locationText.isEmpty ? "Select Location" : locationText)
+                .foregroundColor(locationText.isEmpty ? Color(UIColor.placeholderText) : .primary)
             Spacer()
             Button {
                 isShowingLocationSearch = true
             } label: {
-                Image(systemName: "magnifyingglass")
+                Image(systemName: "map.fill")
             }
         }
     }
 
-    // --- CORRECTED SECTION ---
     private var categorySelectionSection: some View {
-        VStack(alignment: .leading) { // Wrap in a VStack
+        VStack(alignment: .leading) {
             Picker("Category", selection: $selectedCategory) {
-                Text("Select Category").tag("") // Placeholder/default empty tag
+                Text("Select Category").tag("")
                 ForEach(categories, id: \.self) { category in
                     Text(category).tag(category)
                 }
             }
+            .pickerStyle(.menu)
 
-            if selectedCategory.isEmpty {
+            if selectedCategory.isEmpty && !isSubmitting {
                 Text("Please select a category.")
-                    .font(.footnote)
+                    .font(.caption)
                     .foregroundColor(.red)
+                    .padding(.leading, 2)
             }
         }
     }
-    // --- END CORRECTED SECTION ---
-
 
     private var photoSection: some View {
-        Section(header: Text("Photos")) {
+        Section(header: Text("Photos (First image is main)")) {
             PhotosPicker(selection: $selectedPhotoItems, maxSelectionCount: 10, matching: .images) {
-                Text("Select up to 10 photos")
+                Label("Select up to 10 photos", systemImage: "photo.on.rectangle.angled")
             }
 
             if !uiImages.isEmpty {
-                ScrollView(.horizontal) {
+                ScrollView(.horizontal, showsIndicators: true) {
                     HStack {
-                        ForEach(uiImages, id: \.self) { image in
+                        ForEach(Array(uiImages.enumerated()), id: \.offset) { index, image in
                             Image(uiImage: image)
                                 .resizable()
                                 .scaledToFill()
                                 .frame(width: 80, height: 80)
                                 .clipped()
                                 .cornerRadius(8)
+                                .overlay(
+                                    Button {
+                                        uiImages.remove(at: index)
+                                        if index < selectedPhotoItems.count {
+                                            selectedPhotoItems.remove(at: index)
+                                        }
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundColor(.white)
+                                            .background(Color.black.opacity(0.6))
+                                            .clipShape(Circle())
+                                    }
+                                    .padding(4), alignment: .topTrailing
+                                )
                         }
                     }
-                    .padding(.top, 8)
+                    .padding(.vertical, 8)
                 }
             }
         }
@@ -132,37 +164,40 @@ struct CreateListingView: View {
 
     private var submitButtonSection: some View {
         Section {
-            Button("Submit Listing") {
+            Button(action: {
                 hideKeyboard()
                 validateAndSubmitListing()
+            }) {
+                HStack {
+                    Spacer()
+                    if isSubmitting {
+                        ProgressView().frame(height: 20)
+                    } else {
+                        Text("Submit Listing")
+                    }
+                    Spacer()
+                }
             }
             .disabled(isSubmitting || !isFormValid())
         }
     }
-    
+
     private func isFormValid() -> Bool {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         !price.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        Double(price) != nil &&
+        (Double(price) ?? -1) > 0 &&
         !listingDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !locationText.isEmpty &&
+        !locationText.isEmpty && selectedCoordinate != nil &&
         !uiImages.isEmpty &&
-        selectedCoordinate != nil &&
         !selectedCategory.isEmpty
     }
 
     private func validateAndSubmitListing() {
-        guard isFormValid() else {
-            alertMessage = "Please fill all fields and select at least one image and category."
-            showAlert = true
-            return
-        }
         guard Auth.auth().currentUser?.uid != nil else {
-            alertMessage = "You must be logged in to create a listing."
-            showAlert = true
+            triggerAlert(title: "Authentication Error", message: "You must be logged in to create a listing.")
             return
         }
-        
+
         Task {
             await submitListing()
         }
@@ -170,60 +205,55 @@ struct CreateListingView: View {
 
     private func submitListing() async {
         isSubmitting = true
-        guard let coordinate = selectedCoordinate else {
-            alertMessage = "No location selected."
-            showAlert = true
+        guard let coordinate = selectedCoordinate, let userId = Auth.auth().currentUser?.uid else {
+            triggerAlert(title: "Error", message: "User or location missing.")
             isSubmitting = false
             return
         }
-        guard let userId = Auth.auth().currentUser?.uid else {
-             alertMessage = "User not authenticated."
-             showAlert = true
-             isSubmitting = false
-             return
-        }
 
         do {
-            let uploadedImageUrls = try await uploadImages(images: uiImages)
-            let aspectRatios = uiImages.map { $0.size.width / $0.size.height }
-
-            let newListingData: [String: Any] = [
+            let uploadedImageUrls = try await uploadImages(images: uiImages, userIdForPath: userId)
+            let listing: [String: Any] = [
                 "title": title,
-                "price": Double(price) ?? 0,
+                "price": Double(price)!,
                 "description": listingDescription,
                 "locationName": locationText,
                 "latitude": coordinate.latitude,
                 "longitude": coordinate.longitude,
                 "imageUrls": uploadedImageUrls,
-                "imageAspectRatios": aspectRatios,
                 "sellerId": userId,
                 "category": selectedCategory,
-                "timestamp": Timestamp(date: Date())
+                "timestamp": FieldValue.serverTimestamp()
             ]
-
-            try await db.collection("listings").addDocument(data: newListingData)
-            alertMessage = "Listing submitted successfully!"
-            showAlert = true
+            try await db.collection("listings").addDocument(data: listing)
+            triggerAlert(title: "Success", message: "Listing submitted successfully!")
             resetForm()
         } catch {
-            alertMessage = "Error submitting listing: \(error.localizedDescription)"
-            showAlert = true
+            triggerAlert(title: "Submission Error", message: "Error: \(error.localizedDescription)")
         }
         isSubmitting = false
     }
-    
-    private func uploadImages(images: [UIImage]) async throws -> [String] {
+
+    private func uploadImages(images: [UIImage], userIdForPath: String) async throws -> [String] {
         var uploadedUrls: [String] = []
         for image in images {
-            guard let imageData = image.jpegData(compressionQuality: 0.8) else {
-                throw NSError(domain: "CreateListingView", code: 0, userInfo: [NSLocalizedDescriptionKey: "Failed to get image data."])
+            guard let imageData = image.compressedJPEG() else {
+                throw NSError(domain: "ImageError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Compression failed."])
             }
-            
-            let imageRef = storage.child("listing_images/\(UUID().uuidString).jpg")
-            
-            try await imageRef.putDataAsync(imageData)
-            let downloadURL = try await imageRef.downloadURL()
-            uploadedUrls.append(downloadURL.absoluteString)
+
+            let imageName = UUID().uuidString + ".jpg"
+            let imageRef = storage.child("listing_images/\(userIdForPath)/\(imageName)")
+            let metadata = StorageMetadata()
+            metadata.contentType = "image/jpeg"
+
+            do {
+                _ = try await imageRef.putDataAsync(imageData, metadata: metadata)
+            } catch {
+                throw error
+            }
+
+            let url = try await imageRef.downloadURL()
+            uploadedUrls.append(url.absoluteString)
         }
         return uploadedUrls
     }
@@ -239,9 +269,66 @@ struct CreateListingView: View {
         selectedCategory = ""
     }
 
+    private func triggerAlert(title: String, message: String) {
+        self.alertTitle = title
+        self.alertMessage = message
+        self.showAlert = true
+    }
+
     private func hideKeyboard() {
         #if canImport(UIKit)
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         #endif
+    }
+
+    private func extractCityAndState(from address: String) async -> String {
+        do {
+            let placemarks = try await CLGeocoder().geocodeAddressString(address)
+            if let placemark = placemarks.first,
+               let city = placemark.locality,
+               let state = placemark.administrativeArea {
+                return "\(city), \(state)"
+            }
+        } catch {
+            print("Geocoding failed: \(error.localizedDescription)")
+        }
+        return ""
+    }
+}
+
+extension StorageReference {
+    func putDataAsync(_ data: Data, metadata: StorageMetadata?) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            self.putData(data, metadata: metadata) { _, error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume()
+                }
+            }
+        }
+    }
+}
+
+extension UIImage {
+    func compressedJPEG(quality: CGFloat = 0.6, maxSize: CGFloat = 800) -> Data? {
+        let resized = self.scaledToMaxSize(maxSize: maxSize)
+        return resized.jpegData(compressionQuality: quality)
+    }
+
+    func scaledToMaxSize(maxSize: CGFloat) -> UIImage {
+        let aspectRatio = size.width / size.height
+        var newSize: CGSize
+
+        if aspectRatio > 1 {
+            newSize = CGSize(width: maxSize, height: maxSize / aspectRatio)
+        } else {
+            newSize = CGSize(width: maxSize * aspectRatio, height: maxSize)
+        }
+
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        return renderer.image { _ in
+            self.draw(in: CGRect(origin: .zero, size: newSize))
+        }
     }
 }

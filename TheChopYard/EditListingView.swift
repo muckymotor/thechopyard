@@ -4,9 +4,12 @@ import FirebaseStorage
 import FirebaseFirestore
 import FirebaseAuth
 import CoreLocation
+import Contacts
 
 @available(iOS 16.0, *)
 struct EditListingView: View {
+    var onSave: (() -> Void)? = nil
+
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var appViewModel: AppViewModel
 
@@ -16,16 +19,18 @@ struct EditListingView: View {
     @State private var price: String
     @State private var listingDescription: String
     @State private var locationText: String
-    @State private var selectedCategory: String
     @State private var selectedCoordinate: CLLocationCoordinate2D?
+    @State private var selectedCategory: String
 
-    @State private var existingImageUrls: [String]
     @State private var newSelectedPhotoItems: [PhotosPickerItem] = []
     @State private var newUiImages: [UIImage] = []
+    @State private var existingImageUrls: [String]
 
     @State private var isSaving = false
     @State private var showAlert = false
     @State private var alertMessage = ""
+    @State private var alertTitle = "Error"
+    @State private var isShowingLocationSearch = false
 
     private let categories = [
         "Air Intake & Fuel Systems", "Brakes", "Drivetrain & Transmission", "Electrical & Wiring",
@@ -37,18 +42,15 @@ struct EditListingView: View {
     private let db = Firestore.firestore()
     private let storage = Storage.storage().reference()
 
-    var onSave: (() -> Void)?
-
     init(listing: Listing, onSave: (() -> Void)? = nil) {
         self.originalListing = listing
         self.onSave = onSave
-
         _title = State(initialValue: listing.title)
         _price = State(initialValue: String(format: "%.2f", listing.price))
         _listingDescription = State(initialValue: listing.description ?? "")
         _locationText = State(initialValue: listing.locationName ?? "")
+        _selectedCoordinate = State(initialValue: CLLocationCoordinate2D(latitude: listing.latitude, longitude: listing.longitude))
         _selectedCategory = State(initialValue: listing.category ?? "")
-        _selectedCoordinate = State(initialValue: listing.location.coordinate)
         _existingImageUrls = State(initialValue: listing.imageUrls)
     }
 
@@ -62,26 +64,35 @@ struct EditListingView: View {
             .navigationTitle("Edit Listing")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
+                    Button("Cancel") { dismiss() }
                 }
             }
-            .alert(isPresented: $showAlert) {
-                Alert(title: Text(alertMessage.contains("successfully") ? "Success" : "Error"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
-            }
-            .onChange(of: newSelectedPhotoItems) { _ in
+        }
+        .sheet(isPresented: $isShowingLocationSearch) {
+            LocationSearchView { selectedPlace, coordinate in
                 Task {
-                    var loadedImages: [UIImage] = []
-                    for item in newSelectedPhotoItems {
-                        if let data = try? await item.loadTransferable(type: Data.self),
-                           let image = UIImage(data: data) {
-                            loadedImages.append(image)
-                        }
-                    }
-                    newUiImages = loadedImages
+                    locationText = await extractCityAndState(from: selectedPlace)
+                    selectedCoordinate = coordinate
                 }
             }
+        }
+        .onChange(of: newSelectedPhotoItems) { _ in
+            Task {
+                var loadedImages: [UIImage] = []
+                for item in newSelectedPhotoItems {
+                    if let data = try? await item.loadTransferable(type: Data.self),
+                       let image = UIImage(data: data),
+                       let compressed = image.compressedJPEG() {
+                        loadedImages.append(UIImage(data: compressed) ?? image)
+                    }
+                }
+                newUiImages = loadedImages
+            }
+        }
+        .alert(alertTitle, isPresented: $showAlert) {
+            Button("OK") {}
+        } message: {
+            Text(alertMessage)
         }
     }
 
@@ -89,34 +100,55 @@ struct EditListingView: View {
         Section(header: Text("Details")) {
             TextField("Title", text: $title)
             TextField("Price", text: $price).keyboardType(.decimalPad)
-            TextField("Description", text: $listingDescription, axis: .vertical).lineLimit(3...6)
-            TextField("Location", text: $locationText).disabled(true)
+            TextField("Description", text: $listingDescription, axis: .vertical)
+                .lineLimit(3...6)
+            locationField
+            categoryPicker
+        }
+    }
 
+    private var locationField: some View {
+        HStack {
+            Text(locationText.isEmpty ? "Select Location" : locationText)
+                .foregroundColor(locationText.isEmpty ? Color(UIColor.placeholderText) : .primary)
+            Spacer()
+            Button {
+                isShowingLocationSearch = true
+            } label: {
+                Image(systemName: "map.fill")
+            }
+        }
+    }
+
+    private var categoryPicker: some View {
+        VStack(alignment: .leading) {
             Picker("Category", selection: $selectedCategory) {
+                Text("Select Category").tag("")
                 ForEach(categories, id: \.self) { category in
                     Text(category).tag(category)
                 }
             }
+            .pickerStyle(.menu)
 
-            if selectedCategory.isEmpty {
+            if selectedCategory.isEmpty && !isSaving {
                 Text("Please select a category.")
-                    .font(.footnote)
+                    .font(.caption)
                     .foregroundColor(.red)
+                    .padding(.leading, 2)
             }
         }
     }
 
     private var photoSection: some View {
-        Section(header: Text("Update Photos")) {
+        Section(header: Text("Photos")) {
             PhotosPicker(selection: $newSelectedPhotoItems, maxSelectionCount: 10, matching: .images) {
-                Text("Select New Photos (replaces all existing)")
+                Text("Select New Photos (replaces all)")
             }
 
             if !newUiImages.isEmpty {
-                Text("New Images Preview:").font(.caption)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack {
-                        ForEach(newUiImages, id: \.self) { image in
+                        ForEach(Array(newUiImages.enumerated()), id: \.offset) { index, image in
                             Image(uiImage: image)
                                 .resizable()
                                 .scaledToFill()
@@ -124,10 +156,9 @@ struct EditListingView: View {
                                 .clipped()
                                 .cornerRadius(8)
                         }
-                    }.padding(.top, 8)
+                    }
                 }
             } else if !existingImageUrls.isEmpty {
-                Text("Current Images:").font(.caption)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack {
                         ForEach(existingImageUrls, id: \.self) { urlString in
@@ -141,7 +172,7 @@ struct EditListingView: View {
                             .clipped()
                             .cornerRadius(8)
                         }
-                    }.padding(.top, 8)
+                    }
                 }
             }
         }
@@ -164,13 +195,19 @@ struct EditListingView: View {
 
     private func validateAndSaveChanges() {
         guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            alertMessage = "Title cannot be empty."
-            showAlert = true
+            triggerAlert(title: "Validation Error", message: "Title cannot be empty.")
             return
         }
-        guard let _ = Double(price) else {
-            alertMessage = "Invalid price."
-            showAlert = true
+        guard let priceValue = Double(price), priceValue > 0 else {
+            triggerAlert(title: "Validation Error", message: "Invalid price. Must be a number greater than 0.")
+            return
+        }
+        guard selectedCoordinate != nil else {
+            triggerAlert(title: "Validation Error", message: "Location information is missing.")
+            return
+        }
+        if selectedCategory.isEmpty {
+            triggerAlert(title: "Validation Error", message: "Please select a category.")
             return
         }
 
@@ -182,33 +219,38 @@ struct EditListingView: View {
     private func saveChanges() async {
         isSaving = true
 
-        var finalImageUrls: [String] = originalListing.imageUrls
-        var finalAspectRatios: [CGFloat]? = originalListing.imageAspectRatios
+        var finalImageUrlsToSave: [String] = originalListing.imageUrls
 
         if !newUiImages.isEmpty {
+            for url in existingImageUrls {
+                if let storagePath = try? Storage.storage().reference(forURL: url).fullPath {
+                    try? await Storage.storage().reference(withPath: storagePath).delete()
+                }
+            }
+
             do {
-                finalImageUrls = try await uploadImages(images: newUiImages)
-                finalAspectRatios = newUiImages.map { $0.size.width / $0.size.height }
+                finalImageUrlsToSave = try await uploadImages(images: newUiImages)
             } catch {
-                alertMessage = "Error uploading new images: \(error.localizedDescription)"
-                showAlert = true
+                triggerAlert(title: "Upload Error", message: "Error uploading new images: \(error.localizedDescription)")
                 isSaving = false
                 return
             }
         }
 
-        var updatedData: [String: Any] = [
+        let currentLatitude = selectedCoordinate?.latitude ?? originalListing.latitude
+        let currentLongitude = selectedCoordinate?.longitude ?? originalListing.longitude
+
+        let updatedData: [String: Any] = [
             "title": title,
             "price": Double(price) ?? originalListing.price,
-            "description": listingDescription,
-            "locationName": locationText,
-            "latitude": selectedCoordinate?.latitude ?? originalListing.location.coordinate.latitude,
-            "longitude": selectedCoordinate?.longitude ?? originalListing.location.coordinate.longitude,
+            "description": listingDescription.isEmpty ? NSNull() : listingDescription,
+            "locationName": locationText.isEmpty ? NSNull() : locationText,
+            "latitude": currentLatitude,
+            "longitude": currentLongitude,
             "sellerId": originalListing.sellerId,
             "category": selectedCategory,
             "timestamp": Timestamp(date: Date()),
-            "imageUrls": finalImageUrls,
-            "imageAspectRatios": finalAspectRatios ?? []
+            "imageUrls": finalImageUrlsToSave
         ]
 
         await updateFirestore(with: updatedData)
@@ -216,14 +258,16 @@ struct EditListingView: View {
 
     private func uploadImages(images: [UIImage]) async throws -> [String] {
         var uploadedUrls: [String] = []
+        let userId = Auth.auth().currentUser?.uid ?? "unknown_user"
+
         for image in images {
-            guard let imageData = image.jpegData(compressionQuality: 0.8) else {
-                throw NSError(domain: "EditListingView", code: 0, userInfo: [NSLocalizedDescriptionKey: "Failed to get image data."])
+            guard let imageData = image.compressedJPEG() else {
+                throw NSError(domain: "EditListingView", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to convert image to JPEG data."])
             }
 
-            let imageRef = storage.child("listing_images/\(UUID().uuidString).jpg")
+            let imageRef = storage.child("listing_images/\(userId)/\(UUID().uuidString).jpg")
 
-            try await imageRef.putDataAsync(imageData)
+            _ = try await imageRef.putDataAsync(imageData, metadata: nil)
             let downloadURL = try await imageRef.downloadURL()
             uploadedUrls.append(downloadURL.absoluteString)
         }
@@ -231,17 +275,41 @@ struct EditListingView: View {
     }
 
     private func updateFirestore(with data: [String: Any]) async {
+        guard let listingID = originalListing.id else {
+            triggerAlert(title: "Update Error", message: "Original listing ID is missing. Cannot update.")
+            isSaving = false
+            return
+        }
+
         do {
-            try await db.collection("listings").document(originalListing.id).updateData(data)
-            alertMessage = "Listing updated successfully!"
-            showAlert = true
+            try await db.collection("listings").document(listingID).updateData(data)
+            triggerAlert(title: "Success", message: "Listing updated successfully!")
             isSaving = false
             onSave?()
             dismiss()
         } catch {
-            alertMessage = "Failed to update listing: \(error.localizedDescription)"
-            showAlert = true
+            triggerAlert(title: "Update Error", message: "Failed to update listing: \(error.localizedDescription)")
             isSaving = false
         }
+    }
+
+    private func triggerAlert(title: String, message: String) {
+        self.alertTitle = title
+        self.alertMessage = message
+        self.showAlert = true
+    }
+
+    private func extractCityAndState(from address: String) async -> String {
+        do {
+            let placemarks = try await CLGeocoder().geocodeAddressString(address)
+            if let placemark = placemarks.first,
+               let city = placemark.locality,
+               let state = placemark.administrativeArea {
+                return "\(city), \(state)"
+            }
+        } catch {
+            print("Geocoding failed: \(error.localizedDescription)")
+        }
+        return address
     }
 }

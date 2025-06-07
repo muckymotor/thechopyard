@@ -1,151 +1,162 @@
+// ProfileView.swift
+
 import SwiftUI
 import FirebaseAuth
 import FirebaseFirestore
 import CoreLocation
 
-// --- ADDED @available TAG ---
+// NO ErrorAlertItem struct definition here anymore.
+// It will use the definition from AppUtilities.swift (or your shared file).
+
 @available(iOS 16.0, *)
 struct ProfileView: View {
     @EnvironmentObject var appViewModel: AppViewModel
     @State private var userListings: [Listing] = []
-    @State private var showingEditSheet = false // This will be handled by .sheet(item: ...)
-    @State private var selectedListing: Listing? // Make this Identifiable for the sheet
+    @State private var selectedListing: Listing?
     @State private var isLoading = true
     @State private var username: String = ""
     @State private var showingLogoutAlert = false
-    @State private var alertMessage: String? = nil // For error alerts
+    @State private var errorAlertItem: ErrorAlertItem? // This will now refer to the shared definition
 
     private let db = Firestore.firestore()
 
+    // ... (rest of your ProfileView code remains the same as you provided in the last turn)
+    // The body, loadProfileData, fetchUsername, fetchUserListings methods
+    // DO NOT need to change again for this specific error.
+    // Just ensure the duplicate struct definition is removed from this file.
+
     var body: some View {
-        NavigationStack { // Now safe because ProfileView is iOS 16+
-            VStack {
-                List {
-                    if isLoading {
-                        Section {
-                            HStack {
-                                Spacer()
-                                ProgressView("Loading Profile...")
-                                Spacer()
-                            }
+        NavigationStack {
+            List {
+                if isLoading {
+                    Section {
+                        HStack {
+                            Spacer()
+                            ProgressView("Loading Profile...")
+                            Spacer()
                         }
-                    } else {
-                        Section(header: Text("Account")) {
-                            HStack {
-                                Text("Username")
-                                Spacer()
-                                Text(username.isEmpty ? "Not set" : username)
-                                    .foregroundColor(.gray)
-                            }
+                    }
+                } else {
+                    Section(header: Text("Account")) {
+                        HStack {
+                            Text("Username")
+                            Spacer()
+                            Text(username.isEmpty ? "Not set" : username)
+                                .foregroundColor(.gray)
+                        }
+                    }
+                    
+                    Section(header: Text("My Content")) {
+                        NavigationLink {
+                            MyListingsView(
+                                userListings: $userListings,
+                                selectedListing: $selectedListing,
+                                onRefresh: { Task { await fetchUserListings() } }
+                            )
+                            .environmentObject(appViewModel)
+                        } label: {
+                            Label("My Listings", systemImage: "doc.plaintext")
                         }
                         
-                        Section {
-                            NavigationLink(destination: MyListingsView(
-                                userListings: $userListings,
-                                showingEditSheet: $showingEditSheet, // Keep if MyListingsView directly uses this
-                                selectedListing: $selectedListing,   // Keep if MyListingsView directly uses this
-                                onRefresh: { Task { await fetchUserListings() } }
-                            )) {
-                                Label("My Listings", systemImage: "doc.plaintext")
-                            }
-                            
-                            NavigationLink(destination: SavedListingsView()) {
-                                Label("Saved Listings", systemImage: "heart")
-                            }
-                            
-                            NavigationLink(destination: SettingsView(
+                        NavigationLink {
+                            SavedListingsView()
+                                .environmentObject(appViewModel)
+                        } label: {
+                            Label("Saved Listings", systemImage: "heart")
+                        }
+                    }
+                    
+                    Section(header: Text("General")) {
+                        NavigationLink {
+                            SettingsView(
                                 currentUsername: username,
                                 onUsernameUpdated: { Task { await fetchUsername() } }
-                            )) {
-                                Label("Settings", systemImage: "gearshape")
-                            }
+                            )
+                            .environmentObject(appViewModel)
+                        } label: {
+                            Label("Settings", systemImage: "gearshape")
                         }
-                        
-                        Section {
-                            Button(role: .destructive) {
-                                showingLogoutAlert = true
-                            } label: {
-                                Text("Log Out")
-                                    .frame(maxWidth: .infinity, alignment: .center)
-                            }
+                    }
+                    
+                    Section {
+                        Button(role: .destructive) {
+                            showingLogoutAlert = true
+                        } label: {
+                            Text("Log Out")
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .foregroundColor(.red)
                         }
                     }
                 }
-                .navigationTitle("Profile")
-                .task {
-                    await loadProfileData()
+            }
+            .navigationTitle("Profile")
+            .task {
+                await loadProfileData()
+            }
+            .sheet(item: $selectedListing) { listingToEdit in
+                EditListingView(listing: listingToEdit, onSave: {
+                    Task { await fetchUserListings() }
+                })
+                .environmentObject(appViewModel)
+            }
+            .alert("Log Out", isPresented: $showingLogoutAlert) {
+                Button("Log Out", role: .destructive) {
+                    appViewModel.signOutCurrentUser()
                 }
-                // Use .sheet(item: ...) for presenting EditListingView
-                // Make sure your Listing struct is Identifiable (it already is)
-                .sheet(item: $selectedListing) { listingToEdit in
-                    EditListingView(listing: listingToEdit, onSave: {
-                        Task { await fetchUserListings() }
-                    })
-                    .environmentObject(appViewModel) // Pass AppViewModel if EditListingView needs it
-                }
-                .alert(item: $alertMessage) { message in // For displaying errors
-                    Alert(title: Text("Error"), message: Text(message), dismissButton: .default(Text("OK")))
-                }
-                .alert("Are you sure you want to log out?", isPresented: $showingLogoutAlert) {
-                    Button("Log Out", role: .destructive) {
-                        appViewModel.signOut()
-                    }
-                    Button("Cancel", role: .cancel) { }
-                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Are you sure you want to log out?")
+            }
+            .alert(item: $errorAlertItem) { item in
+                Alert(title: Text(item.title), message: Text(item.message), dismissButton: .default(Text("OK")))
             }
         }
     }
     
     private func loadProfileData() async {
         isLoading = true
-        await fetchUsername()
-        await fetchUserListings()
+        async let usernameFetch: () = fetchUsername()
+        async let listingsFetch: () = fetchUserListings()
+        _ = await [usernameFetch, listingsFetch]
         isLoading = false
     }
 
     private func fetchUsername() async {
         guard let userId = Auth.auth().currentUser?.uid else {
-            self.username = "Error: Not logged in" // Provide feedback
-            // isLoading = false // Ensure isLoading is handled if returning early
+            self.username = ""
             return
         }
         do {
             let snapshot = try await db.collection("users").document(userId).getDocument()
-            if let data = snapshot.data(), let name = data["username"] as? String {
+            if snapshot.exists, let data = snapshot.data(), let name = data["username"] as? String {
                 self.username = name
             } else {
-                self.username = "No username set" // Or handle as an error/prompt to set one
+                self.username = "No username set"
             }
         } catch {
             print("Error fetching username: \(error.localizedDescription)")
-            self.username = "Error loading username" // Update UI to reflect error
-            // self.alertMessage = "Could not load username: \(error.localizedDescription)" // Example error alert
+            self.username = ""
+            self.errorAlertItem = ErrorAlertItem(message: "Could not load username: \(error.localizedDescription)")
         }
-        // isLoading = false // Ensure isLoading is handled in all paths
     }
 
     private func fetchUserListings() async {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
-
+        guard let userId = Auth.auth().currentUser?.uid else {
+            self.userListings = []
+            return
+        }
         do {
             let snapshot = try await db.collection("listings")
                 .whereField("sellerId", isEqualTo: userId)
                 .order(by: "timestamp", descending: true)
                 .getDocuments()
-            
-            self.userListings = snapshot.documents.compactMap { doc in
-                Listing(id: doc.documentID, data: doc.data())
+            self.userListings = snapshot.documents.compactMap { document -> Listing? in
+                try? document.data(as: Listing.self)
             }
         } catch {
-            print("Error fetching listings: \(error.localizedDescription)")
-            // self.alertMessage = "Could not load your listings: \(error.localizedDescription)" // Example error alert
+            print("Error fetching user listings: \(error.localizedDescription)")
+            self.userListings = []
+            self.errorAlertItem = ErrorAlertItem(message: "Could not load your listings: \(error.localizedDescription)")
         }
     }
-}
-
-// --- REMOVED REDUNDANT EXTENSION FOR Listing ---
-
-// For alert(item: $alertMessage), String needs to be Identifiable
-extension String: Identifiable {
-    public var id: String { self }
 }

@@ -1,54 +1,50 @@
 import Foundation
 import CoreLocation
-import FirebaseFirestore
+import FirebaseFirestore // For Timestamp, GeoPoint (if used directly)
 
-struct Listing: Identifiable, Equatable {
-    var id: String
+// ✅ ADDED Hashable conformance HERE
+struct Listing: Identifiable, Decodable, Equatable, Hashable {
+    @DocumentID var id: String?
+
     var title: String
     var price: Double
-    var location: CLLocation
+    var latitude: Double
+    var longitude: Double
     var locationName: String?
     var imageUrls: [String]
-    var imageAspectRatios: [CGFloat]?   // ✅ Required for dynamic height
     var sellerId: String
     var timestamp: Date
     var description: String?
     var category: String?
 
+    // Computed property for CLLocation
+    var clLocation: CLLocation {
+        CLLocation(latitude: latitude, longitude: longitude)
+    }
+
+    // Equatable conformance (already present, based on id)
     static func ==(lhs: Listing, rhs: Listing) -> Bool {
         lhs.id == rhs.id
     }
 
+    // Hashable conformance will be auto-synthesized by Swift
+    // because all stored properties are Hashable.
+    // If you needed to implement it manually (usually if 'id' is the sole distinguisher):
+    // func hash(into hasher: inout Hasher) {
+    //     hasher.combine(id)
+    // }
+
+    // Helper function to format distance
     func formattedDistance(from userLocation: CLLocation) -> String {
-        let miles = location.distance(from: userLocation) / 1609.34
-        return miles < 1.0 ? "Under 1 mile away" : String(format: "%.1f miles away", miles)
-    }
-}
+        let distanceInMeters = clLocation.distance(from: userLocation)
+        let miles = distanceInMeters / 1609.34
 
-extension Listing {
-    init?(id: String, data: [String: Any]) {
-        guard
-            let title = data["title"] as? String,
-            let price = data["price"] as? Double,
-            let latitude = data["latitude"] as? CLLocationDegrees,
-            let longitude = data["longitude"] as? CLLocationDegrees,
-            let imageUrls = data["imageUrls"] as? [String],
-            let sellerId = data["sellerId"] as? String,
-            let timestamp = data["timestamp"] as? Timestamp
-        else {
-            return nil
+        if miles < 0.1 {
+            return "Very close"
+        } else if miles < 1.0 {
+            return String(format: "%.1f miles away", miles)
+        } else {
+            return String(format: "%.1f miles away", miles)
         }
-
-        self.id = id
-        self.title = title
-        self.price = price
-        self.location = CLLocation(latitude: latitude, longitude: longitude)
-        self.locationName = data["locationName"] as? String
-        self.imageUrls = imageUrls
-        self.imageAspectRatios = data["imageAspectRatios"] as? [CGFloat]
-        self.sellerId = sellerId
-        self.timestamp = timestamp.dateValue()
-        self.description = data["description"] as? String
-        self.category = data["category"] as? String
     }
 }

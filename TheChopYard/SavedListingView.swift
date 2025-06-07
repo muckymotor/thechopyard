@@ -1,104 +1,130 @@
+// SavedListingsView.swift
+
 import SwiftUI
 import FirebaseFirestore
 import CoreLocation
+
+// NO ErrorAlertItem struct definition here anymore.
+// It will use the definition from AppUtilities.swift (or your shared file).
 
 struct SavedListingsView: View {
     @EnvironmentObject var appViewModel: AppViewModel
     @StateObject private var locationManager = LocationManager()
     @State private var savedListings: [Listing] = []
     @State private var isLoading = false
+    @State private var errorAlertItem: ErrorAlertItem? // This will now refer to the shared definition
 
-    private let db = Firestore.firestore()
+    // ... (rest of your SavedListingsView code remains the same as you provided in the last turn)
+    // The body, listingsScrollView, fetchFullSavedListings, clientSideSortedListings methods
+    // DO NOT need to change again for this specific error.
+    // Just ensure the duplicate/commented-out struct definition is removed from this file.
 
     var body: some View {
         NavigationView {
-            VStack {
-                if locationManager.authorizationStatus == .denied {
-                    Text("Location permission denied. Please enable it in Settings to filter by distance and see nearby listings.")
-                        .foregroundColor(.red)
-                        .padding()
-                        .multilineTextAlignment(.center)
+            Group {
+                if isLoading && savedListings.isEmpty {
+                    ProgressView("Loading saved listings...")
+                } else if savedListings.isEmpty {
+                    VStack(spacing: 12) {
+                        Image(systemName: "heart.slash.fill")
+                            .font(.system(size: 48))
+                            .foregroundColor(.gray)
+                        Text("No Saved Listings")
+                            .font(.title3)
+                            .foregroundColor(.gray)
+                        Text("Listings you save will appear here.")
+                            .font(.callout)
+                            .foregroundColor(.gray)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    listingsScrollView
                 }
-                listingsScrollView
             }
-            .navigationBarTitle("Saved Listings", displayMode: .inline)
+            .navigationTitle("Saved Listings")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    if isLoading { ProgressView() }
+                }
+            }
         }
         .task(id: appViewModel.savedListingIds) {
-            await refreshSavedListings()
+            await fetchFullSavedListings()
         }
         .onAppear {
+            if savedListings.isEmpty && !appViewModel.savedListingIds.isEmpty && !isLoading {
+                Task { await fetchFullSavedListings() }
+            }
             if locationManager.location == nil {
                 locationManager.requestPermissionAndFetchLocation()
             }
+        }
+        .alert(item: $errorAlertItem) { item in
+            Alert(title: Text(item.title), message: Text(item.message), dismissButton: .default(Text("OK")))
         }
     }
 
     private var listingsScrollView: some View {
         ScrollView {
-            LazyVStack(spacing: 20) {
-                if isLoading && savedListings.isEmpty {
-                    ProgressView("Loading saved listings...")
-                        .padding(.top, 40)
-                } else if filteredListings.isEmpty && !isLoading {
-                    Text("You have no saved listings.")
-                        .foregroundColor(.gray)
-                        .padding(.top, 40)
-                } else {
-                    ForEach(filteredListings) { item in
-                        ListingRow(
-                            listing: item,
-                            locationManager: locationManager
-                        )
-                        .environmentObject(appViewModel)
-                    }
-
-                    if isLoading && !savedListings.isEmpty {
-                        ProgressView().padding()
-                    }
+            LazyVStack(spacing: 16) {
+                ForEach(clientSideSortedListings) { item in
+                    ListingRow(
+                        listing: item,
+                        locationManager: locationManager
+                    )
+                    .environmentObject(appViewModel)
                 }
             }
-            .padding(.top)
+            .padding(.vertical)
+        }
+        .refreshable {
+            await fetchFullSavedListings()
         }
     }
 
-    private func refreshSavedListings() async {
+    private func fetchFullSavedListings() async {
         isLoading = true
+        errorAlertItem = nil
+        let db = Firestore.firestore()
 
-        guard !appViewModel.savedListingIds.isEmpty else {
+        let idsToFetch = Array(appViewModel.savedListingIds)
+
+        guard !idsToFetch.isEmpty else {
             self.savedListings = []
             isLoading = false
             return
         }
 
-        do {
-            let snapshot = try await db.collection("listings")
-                .whereField(FieldPath.documentID(), in: Array(appViewModel.savedListingIds))
-                .getDocuments()
-
-            savedListings = snapshot.documents.compactMap { doc in
-                Listing(id: doc.documentID, data: doc.data())
-            }
-        } catch {
-            print("Error fetching saved listings: \(error.localizedDescription)")
-            savedListings = []
+        var fetchedListings: [Listing] = []
+        let chunkSize = 30
+        let chunks = stride(from: 0, to: idsToFetch.count, by: chunkSize).map {
+            Array(idsToFetch[$0..<min($0 + chunkSize, idsToFetch.count)])
         }
 
+        do {
+            for chunk in chunks {
+                if chunk.isEmpty { continue }
+                let snapshot = try await db.collection("listings")
+                    .whereField(FieldPath.documentID(), in: chunk)
+                    .getDocuments()
+                
+                let chunkListings = snapshot.documents.compactMap { document -> Listing? in
+                    try? document.data(as: Listing.self)
+                }
+                fetchedListings.append(contentsOf: chunkListings)
+            }
+            self.savedListings = fetchedListings
+        } catch {
+            print("Error fetching saved listings details: \(error.localizedDescription)")
+            self.savedListings = []
+            self.errorAlertItem = ErrorAlertItem(message: "Could not load saved listings: \(error.localizedDescription)")
+        }
         isLoading = false
     }
 
-    private var filteredListings: [Listing] {
-        let locationFiltered: [Listing]
-
-        if locationManager.authorizationStatus == .denied || locationManager.location == nil {
-            locationFiltered = savedListings
-        } else {
-            let userLocation = locationManager.location!
-            locationFiltered = savedListings.filter { listing in
-                let distanceInMiles = listing.location.distance(from: userLocation) / 1609.34
-                return distanceInMiles <= 100
-            }
-        }
-
-        return locationFiltered.sorted { $0.timestamp > $1.timestamp }
+    private var clientSideSortedListings: [Listing] {
+        return savedListings.sorted { $0.timestamp > $1.timestamp }
     }
 }

@@ -2,141 +2,245 @@ import SwiftUI
 import FirebaseAuth
 import FirebaseFirestore
 
-struct MessagesView: View {
-    @State private var chatThreads: [ChatThread] = []
-    private let db = Firestore.firestore()
-    @State private var listener: ListenerRegistration?
+struct ChatThread: Identifiable, Equatable, Hashable {
+    let id: String
+    var displayName: String
+    var lastMessage: String
+    var lastMessageTimestamp: Date
+    var otherUserId: String
+    var listingTitle: String?
+    var listingImageUrl: String?
+    var readBy: [String]
+    var lastMessageSenderId: String
+
+    var displayLastMessage: String {
+        lastMessage.isEmpty ? "No messages yet." : lastMessage
+    }
+
+    func isUnread(for currentUserId: String) -> Bool {
+        return !readBy.contains(currentUserId) && lastMessageSenderId != currentUserId
+    }
+}
+
+struct ChatThreadRow: View {
+    let thread: ChatThread
+    let isUnread: Bool
 
     var body: some View {
-        NavigationView {
+        HStack(spacing: 12) {
+            if isUnread {
+                Circle()
+                    .fill(Color.blue)
+                    .frame(width: 10, height: 10)
+            } else {
+                Circle()
+                    .fill(Color.clear)
+                    .frame(width: 10, height: 10)
+            }
+
+            if let imageUrl = thread.listingImageUrl,
+               let url = URL(string: imageUrl),
+               !imageUrl.isEmpty {
+                AsyncImage(url: url) { phase in
+                    if let image = phase.image {
+                        image.resizable().aspectRatio(contentMode: .fill)
+                    } else if phase.error != nil {
+                        Image(systemName: "photo.circle.fill")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .foregroundColor(.gray)
+                    } else {
+                        Color.gray.opacity(0.1).overlay(ProgressView())
+                    }
+                }
+                .frame(width: 50, height: 50)
+                .clipShape(Circle())
+            } else {
+                Image(systemName: "person.circle.fill")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 50, height: 50)
+                    .foregroundColor(.gray)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(thread.displayName)
+                    .font(.headline)
+                    .lineLimit(1)
+                Text(thread.displayLastMessage)
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                    .lineLimit(1)
+            }
+            Spacer()
+            Text(thread.lastMessageTimestamp, style: .time)
+                .font(.caption)
+                .foregroundColor(.gray)
+        }
+        .padding(.vertical, 8)
+    }
+}
+
+@MainActor
+struct MessagesView: View {
+    @EnvironmentObject var appViewModel: AppViewModel
+    @State private var chatThreads: [ChatThread] = []
+    @State private var isLoading = false
+    @State private var listener: ListenerRegistration?
+    @State private var navigationPath = NavigationPath()
+
+    private let db = Firestore.firestore()
+
+    var body: some View {
+        NavigationStack(path: $navigationPath) {
             Group {
-                if chatThreads.isEmpty {
-                    VStack {
-                        Spacer()
-                        Text("No conversations yet")
+                if isLoading && chatThreads.isEmpty {
+                    ProgressView("Loading conversations...")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if chatThreads.isEmpty {
+                    VStack(spacing: 12) {
+                        Image(systemName: "message.badge.fill")
+                            .font(.system(size: 48))
+                            .foregroundColor(.gray)
+                        Text("No Conversations Yet")
                             .font(.title3)
                             .foregroundColor(.gray)
-                        Spacer()
+                        Text("When you message a seller, your chats will appear here.")
+                            .font(.callout)
+                            .foregroundColor(.gray)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     List {
                         ForEach(chatThreads) { thread in
-                            NavigationLink(destination: ChatView(chatId: thread.id, sellerUsername: thread.displayName)) {
-                                HStack(spacing: 12) {
-                                    Circle()
-                                        .fill(Color.gray.opacity(0.3))
-                                        .frame(width: 40, height: 40)
-
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(thread.displayName)
-                                            .font(.headline)
-                                        Text(thread.lastMessage)
-                                            .foregroundColor(.gray)
-                                            .lineLimit(1)
-                                    }
-
-                                    Spacer()
-
-                                    Text(thread.timestamp.relativeTimeString())
-                                        .foregroundColor(.gray)
-                                        .font(.caption)
-                                }
-                                .padding(.vertical, 4)
+                            NavigationLink(value: thread) {
+                                ChatThreadRow(thread: thread, isUnread: thread.isUnread(for: appViewModel.user?.uid ?? ""))
                             }
                         }
                         .onDelete(perform: hideChatThread)
                     }
+                    .listStyle(.plain)
                     .refreshable {
-                        fetchChatsOnce()
+                        do {
+                            async let refreshChats: () = listenForChatUpdates(forceRefresh: true)
+                            async let delay: () = try Task.sleep(nanoseconds: 500_000_000)
+                            _ = try await (refreshChats, delay)
+                        } catch {
+                            print("MessagesView: Error during refresh delay: \(error.localizedDescription)")
+                        }
                     }
                 }
             }
             .navigationTitle("Messages")
+            .navigationDestination(for: ChatThread.self) { thread in
+                ChatView(chatId: thread.id, sellerUsername: thread.displayName)
+                    .environmentObject(appViewModel)
+            }
             .onAppear {
-                listenForChatUpdates()
+                Task { await listenForChatUpdates() }
             }
             .onDisappear {
                 listener?.remove()
+                listener = nil
             }
         }
     }
 
-    private func listenForChatUpdates() {
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+    private func listenForChatUpdates(forceRefresh: Bool = false) async {
+        guard let currentUserId = appViewModel.user?.uid else {
+            chatThreads = []
+            isLoading = false
+            return
+        }
 
-        listener?.remove() // Remove any previous listener
+        if listener != nil && !forceRefresh && !isLoading {
+            return
+        }
+
+        isLoading = true
+        listener?.remove()
+
         listener = db.collection("chats")
             .whereField("visibleTo", arrayContains: currentUserId)
-            .order(by: "timestamp", descending: true)
-            .addSnapshotListener { snapshot, _ in
-                guard let docs = snapshot?.documents else { return }
-
-                var fetchedThreads: [ChatThread] = []
-                let dispatchGroup = DispatchGroup()
-
-                for doc in docs {
-                    let data = doc.data()
-                    let participants = data["participants"] as? [String] ?? []
-                    let lastMessage = data["lastMessage"] as? String ?? ""
-                    let timestamp = (data["timestamp"] as? Timestamp)?.dateValue() ?? Date()
-
-                    guard !lastMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                        continue
+            .order(by: "lastMessageTimestamp", descending: true)
+            .addSnapshotListener { snapshot, error in
+                Task {
+                    if let error = error {
+                        print("MessagesView: Listener error: \(error.localizedDescription)")
+                        self.isLoading = false
+                        return
                     }
 
-                    let otherUserId = participants.first { $0 != currentUserId } ?? "Unknown"
+                    guard let documents = snapshot?.documents else {
+                        self.chatThreads = []
+                        self.isLoading = false
+                        return
+                    }
 
-                    dispatchGroup.enter()
-                    db.collection("users").document(otherUserId).getDocument { userSnapshot, _ in
-                        let userData = userSnapshot?.data()
-                        let username = userData?["username"] as? String ?? "Unknown"
+                    var fetchedThreads: [ChatThread] = []
+                    var hasUnread = false
+
+                    for doc in documents {
+                        let data = doc.data()
+                        let participants = data["participants"] as? [String] ?? []
+                        let lastMessage = data["lastMessage"] as? String ?? ""
+                        let timestamp = (data["lastMessageTimestamp"] as? Timestamp)?.dateValue() ?? Date()
+                        let listingTitle = data["listingTitle"] as? String
+                        let listingImageUrl = data["listingImageUrl"] as? String
+                        let readBy = data["readBy"] as? [String] ?? []
+                        let lastMessageSenderId = data["lastMessageSenderId"] as? String ?? ""
+
+                        let otherUserId = participants.first { $0 != currentUserId } ?? "unknown"
+                        guard otherUserId != "unknown" else { continue }
+
+                        var displayName = "Unknown User"
+                        if let names = data["participantNames"] as? [String: String],
+                           let name = names[otherUserId] {
+                            displayName = name
+                        }
 
                         let thread = ChatThread(
                             id: doc.documentID,
-                            displayName: username,
+                            displayName: displayName,
                             lastMessage: lastMessage,
-                            timestamp: timestamp
+                            lastMessageTimestamp: timestamp,
+                            otherUserId: otherUserId,
+                            listingTitle: listingTitle,
+                            listingImageUrl: listingImageUrl,
+                            readBy: readBy,
+                            lastMessageSenderId: lastMessageSenderId
                         )
 
-                        fetchedThreads.append(thread)
-                        dispatchGroup.leave()
-                    }
-                }
+                        if thread.isUnread(for: currentUserId) {
+                            hasUnread = true
+                        }
 
-                dispatchGroup.notify(queue: .main) {
-                    self.chatThreads = fetchedThreads
+                        fetchedThreads.append(thread)
+                    }
+
+                    self.chatThreads = fetchedThreads.sorted(by: { $0.lastMessageTimestamp > $1.lastMessageTimestamp })
+                    self.appViewModel.hasUnreadMessages = hasUnread
+                    self.isLoading = false
                 }
             }
-    }
-
-    private func fetchChatsOnce() {
-        listener?.remove()
-        listenForChatUpdates()
     }
 
     private func hideChatThread(at offsets: IndexSet) {
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        guard let currentUserId = appViewModel.user?.uid else { return }
+        let toHide = offsets.map { chatThreads[$0] }
+        chatThreads.remove(atOffsets: offsets)
 
-        for index in offsets {
-            let thread = chatThreads[index]
-            let chatRef = db.collection("chats").document(thread.id)
-
-            chatRef.updateData([
+        for thread in toHide {
+            let ref = db.collection("chats").document(thread.id)
+            ref.updateData([
                 "visibleTo": FieldValue.arrayRemove([currentUserId])
             ]) { error in
                 if let error = error {
-                    print("Error hiding chat: \(error.localizedDescription)")
+                    print("Error hiding chat \(thread.id): \(error.localizedDescription)")
                 }
             }
         }
-
-        chatThreads.remove(atOffsets: offsets)
     }
-}
-
-struct ChatThread: Identifiable {
-    let id: String
-    let displayName: String
-    let lastMessage: String
-    let timestamp: Date
 }
