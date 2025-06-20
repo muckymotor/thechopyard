@@ -283,10 +283,12 @@ struct EditListingView: View {
 
         do {
             try await db.collection("listings").document(listingID).updateData(data)
-            NotificationCenter.default.post(name: .listingUpdated, object: nil)
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .listingUpdated, object: listingID)
+                onSave?()
+            }
             triggerAlert(title: "Success", message: "Listing updated successfully!")
             isSaving = false
-            onSave?()
             dismiss()
         } catch {
             triggerAlert(title: "Update Error", message: "Failed to update listing: \(error.localizedDescription)")

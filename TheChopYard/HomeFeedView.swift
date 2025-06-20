@@ -78,11 +78,11 @@ struct HomeFeedView: View {
             print("HomeFeedView: User UID changed or view appeared, fetching initial listings.")
             await appViewModel.fetchListings(categories: selectedCategories, sortBy: selectedSort, loadMore: false)
         }
-        .onReceive(NotificationCenter.default.publisher(for: .listingUpdated)) { _ in
-                    Task {
-                        await appViewModel.fetchListings(categories: selectedCategories, sortBy: selectedSort, loadMore: false)
-                    }
-                }
+        .onReceive(NotificationCenter.default.publisher(for: .listingUpdated).receive(on: RunLoop.main)) { _ in
+            Task {
+                await appViewModel.fetchListings(categories: selectedCategories, sortBy: selectedSort, loadMore: false)
+            }
+        }
         .onAppear {
             // Redundant if .task(id: appViewModel.user?.uid) handles initial load well.
             // Kept for safety if listings are empty and user is already set.
