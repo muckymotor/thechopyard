@@ -118,7 +118,7 @@ struct SignupView: View {
             // The 'try await' above would throw if user creation failed catastrophically.
 
             print("Firebase Auth user created successfully: \(newUser.uid)")
-            await saveUserDataAndUsername(userId: newUser.uid, email: newUser.email ?? self.email, username: trimmedUsername)
+            await saveUserDataAndUsername(sellerId: newUser.uid, email: newUser.email ?? self.email, username: trimmedUsername)
 
         } catch {
             errorMessage = "Sign up failed: \(error.localizedDescription)"
@@ -126,8 +126,8 @@ struct SignupView: View {
         }
     }
 
-    private func saveUserDataAndUsername(userId: String, email: String, username: String) async {
-        let userRef = db.collection("users").document(userId)
+    private func saveUserDataAndUsername(sellerId: String, email: String, username: String) async {
+        let userRef = db.collection("users").document(sellerId)
         let usernameRef = db.collection("usernames").document(username)
 
         let userData: [String: Any] = [
@@ -137,7 +137,7 @@ struct SignupView: View {
         ]
 
         let usernameData: [String: Any] = [
-            "uid": userId,
+            "uid": sellerId,
             "email": email
         ]
 
@@ -153,7 +153,7 @@ struct SignupView: View {
         } catch {
             errorMessage = "Failed to save user data: \(error.localizedDescription)"
             isLoading = false
-            print("Error committing batch: \(error.localizedDescription). Firebase Auth user \(userId) was created but Firestore data might be inconsistent.")
+            print("Error committing batch: \(error.localizedDescription). Firebase Auth user \(sellerId) was created but Firestore data might be inconsistent.")
             // Consider attempting to delete the Auth user here if Firestore save fails, for consistency.
             // This is an advanced error recovery step.
         }

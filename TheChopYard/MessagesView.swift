@@ -7,7 +7,7 @@ struct ChatThread: Identifiable, Equatable, Hashable {
     var displayName: String
     var lastMessage: String
     var lastMessageTimestamp: Date
-    var otherUserId: String
+    var othersellerId: String
     var listingTitle: String?
     var listingImageUrl: String?
     var readBy: [String]
@@ -17,8 +17,8 @@ struct ChatThread: Identifiable, Equatable, Hashable {
         lastMessage.isEmpty ? "No messages yet." : lastMessage
     }
 
-    func isUnread(for currentUserId: String) -> Bool {
-        return !readBy.contains(currentUserId) && lastMessageSenderId != currentUserId
+    func isUnread(for currentsellerId: String) -> Bool {
+        return !readBy.contains(currentsellerId) && lastMessageSenderId != currentsellerId
     }
 }
 
@@ -149,7 +149,7 @@ struct MessagesView: View {
     }
 
     private func listenForChatUpdates(forceRefresh: Bool = false) async {
-        guard let currentUserId = appViewModel.user?.uid else {
+        guard let currentsellerId = appViewModel.user?.uid else {
             chatThreads = []
             isLoading = false
             return
@@ -163,7 +163,7 @@ struct MessagesView: View {
         listener?.remove()
 
         listener = db.collection("chats")
-            .whereField("visibleTo", arrayContains: currentUserId)
+            .whereField("visibleTo", arrayContains: currentsellerId)
             .order(by: "lastMessageTimestamp", descending: true)
             .addSnapshotListener { snapshot, error in
                 Task {
@@ -192,12 +192,12 @@ struct MessagesView: View {
                         let readBy = data["readBy"] as? [String] ?? []
                         let lastMessageSenderId = data["lastMessageSenderId"] as? String ?? ""
 
-                        let otherUserId = participants.first { $0 != currentUserId } ?? "unknown"
-                        guard otherUserId != "unknown" else { continue }
+                        let othersellerId = participants.first { $0 != currentsellerId } ?? "unknown"
+                        guard othersellerId != "unknown" else { continue }
 
                         var displayName = "Unknown User"
                         if let names = data["participantNames"] as? [String: String],
-                           let name = names[otherUserId] {
+                           let name = names[othersellerId] {
                             displayName = name
                         }
 
@@ -206,14 +206,14 @@ struct MessagesView: View {
                             displayName: displayName,
                             lastMessage: lastMessage,
                             lastMessageTimestamp: timestamp,
-                            otherUserId: otherUserId,
+                            othersellerId: othersellerId,
                             listingTitle: listingTitle,
                             listingImageUrl: listingImageUrl,
                             readBy: readBy,
                             lastMessageSenderId: lastMessageSenderId
                         )
 
-                        if thread.isUnread(for: currentUserId) {
+                        if thread.isUnread(for: currentsellerId) {
                             hasUnread = true
                         }
 
@@ -228,14 +228,14 @@ struct MessagesView: View {
     }
 
     private func hideChatThread(at offsets: IndexSet) {
-        guard let currentUserId = appViewModel.user?.uid else { return }
+        guard let currentsellerId = appViewModel.user?.uid else { return }
         let toHide = offsets.map { chatThreads[$0] }
         chatThreads.remove(atOffsets: offsets)
 
         for thread in toHide {
             let ref = db.collection("chats").document(thread.id)
             ref.updateData([
-                "visibleTo": FieldValue.arrayRemove([currentUserId])
+                "visibleTo": FieldValue.arrayRemove([currentsellerId])
             ]) { error in
                 if let error = error {
                     print("Error hiding chat \(thread.id): \(error.localizedDescription)")

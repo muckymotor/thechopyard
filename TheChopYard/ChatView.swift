@@ -19,7 +19,7 @@ struct ChatView: View {
     @State private var listener: ListenerRegistration?
 
     private var db: Firestore { Firestore.firestore() }
-    private var currentUserId: String? { appViewModel.user?.uid }
+    private var currentsellerId: String? { appViewModel.user?.uid }
 
     var body: some View {
         VStack {
@@ -28,7 +28,7 @@ struct ChatView: View {
                     LazyVStack(alignment: .leading, spacing: 8) {
                         ForEach(messages) { message in
                             HStack {
-                                if message.senderId == currentUserId {
+                                if message.senderId == currentsellerId {
                                     Spacer()
                                     Text(message.text)
                                         .padding()
@@ -81,7 +81,7 @@ struct ChatView: View {
 
     private func listenToMessages() {
         listener?.remove()
-        guard let currentUserId else { return }
+        guard let currentsellerId else { return }
 
         listener = db.collection("chats").document(chatId)
             .collection("messages")
@@ -97,9 +97,9 @@ struct ChatView: View {
 
 
     private func sendMessage() {
-        guard let currentUserId else { return }
+        guard let currentsellerId else { return }
 
-        let message = Message(id: nil, text: newMessage, senderId: currentUserId, timestamp: Date())
+        let message = Message(id: nil, text: newMessage, senderId: currentsellerId, timestamp: Date())
         let messageRef = db.collection("chats").document(chatId).collection("messages").document()
         let chatRef = db.collection("chats").document(chatId)
 
@@ -108,8 +108,8 @@ struct ChatView: View {
             chatRef.updateData([
                 "lastMessage": message.text,
                 "lastMessageTimestamp": message.timestamp,
-                "lastMessageSenderId": currentUserId,
-                "readBy": [currentUserId] // Reset readBy to only the sender
+                "lastMessageSenderId": currentsellerId,
+                "readBy": [currentsellerId] // Reset readBy to only the sender
             ])
             newMessage = ""
         } catch {
@@ -118,10 +118,10 @@ struct ChatView: View {
     }
 
     private func markChatAsRead() {
-        guard let currentUserId else { return }
+        guard let currentsellerId else { return }
         let chatRef = db.collection("chats").document(chatId)
         chatRef.updateData([
-            "readBy": FieldValue.arrayUnion([currentUserId])
+            "readBy": FieldValue.arrayUnion([currentsellerId])
         ])
     }
 }

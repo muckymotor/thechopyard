@@ -122,12 +122,12 @@ struct ProfileView: View {
     }
 
     private func fetchUsername() async {
-        guard let userId = Auth.auth().currentUser?.uid else {
+        guard let sellerId = Auth.auth().currentUser?.uid else {
             self.username = ""
             return
         }
         do {
-            let snapshot = try await db.collection("users").document(userId).getDocument()
+            let snapshot = try await db.collection("users").document(sellerId).getDocument()
             if snapshot.exists, let data = snapshot.data(), let name = data["username"] as? String {
                 self.username = name
             } else {
@@ -141,13 +141,13 @@ struct ProfileView: View {
     }
 
     private func fetchUserListings() async {
-        guard let userId = Auth.auth().currentUser?.uid else {
+        guard let sellerId = Auth.auth().currentUser?.uid else {
             self.userListings = []
             return
         }
         do {
             let snapshot = try await db.collection("listings")
-                .whereField("sellerId", isEqualTo: userId)
+                .whereField("sellerId", isEqualTo: sellerId)
                 .order(by: "timestamp", descending: true)
                 .getDocuments()
             self.userListings = snapshot.documents.compactMap { document -> Listing? in

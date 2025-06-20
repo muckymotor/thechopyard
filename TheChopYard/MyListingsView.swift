@@ -1,23 +1,23 @@
 import SwiftUI
-import FirebaseFirestore // Keep if any direct Firestore interaction remains, though delete is here
-import SDWebImageSwiftUI // Assuming you're using this for image loading
+import FirebaseFirestore
+import FirebaseStorage
+import SDWebImageSwiftUI
 
 struct MyListingsView: View {
     @Binding var userListings: [Listing]
-    // ✅ REMOVED: @Binding var showingEditSheet: Bool
-    @Binding var selectedListing: Listing? // This will be set to trigger the sheet in ProfileView
+    @Binding var selectedListing: Listing?
     var onRefresh: () -> Void
 
+    @EnvironmentObject var appViewModel: AppViewModel
     @State private var showDeleteAlert = false
-    @State private var listingToDelete: Listing? = nil
-    // @EnvironmentObject var appViewModel: AppViewModel // Only if directly needed for actions not covered by bindings/callbacks
+    @State private var listingToDelete: Listing?
 
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 16) {
                 if userListings.isEmpty {
                     VStack(spacing: 12) {
-                        Image(systemName: "tray.fill") // Using a filled system image
+                        Image(systemName: "tray.fill")
                             .font(.system(size: 48))
                             .foregroundColor(.gray)
                         Text("You haven't created any listings yet.")
@@ -46,22 +46,18 @@ struct MyListingsView: View {
             }
             .padding(.vertical)
         }
-        // .navigationTitle("My Listings") // Usually set by the containing NavigationView in ProfileView
-        // If this view can be presented modally or independently, a navigation title here is fine.
-        // For now, assuming ProfileView handles the overall navigation title.
         .refreshable {
             onRefresh()
         }
-        .alert("Confirm Delete", isPresented: $showDeleteAlert, presenting: listingToDelete) { listingForAlert in
+        .alert("Confirm Delete", isPresented: $showDeleteAlert, presenting: listingToDelete) { listing in
             Button("Delete", role: .destructive) {
                 Task {
-                    await deleteListing(listingForAlert)
+                    await deleteListing(listing)
                 }
             }
             Button("Cancel", role: .cancel) {}
-        } message: { listingForAlert in
-            // Use optional chaining for listing title in case it's unexpectedly nil (though unlikely for an existing listing)
-            Text("Are you sure you want to delete \"\(listingForAlert.title)\"? This cannot be undone.")
+        } message: { listing in
+            Text("Are you sure you want to delete \"\(listing.title)\"? This cannot be undone.")
         }
     }
 
@@ -84,7 +80,7 @@ struct MyListingsView: View {
                     .frame(width: 80, height: 80)
                     .cornerRadius(10)
                     .overlay(
-                        Image(systemName: "photo.on.rectangle.angled") // Different placeholder icon
+                        Image(systemName: "photo.on.rectangle.angled")
                             .foregroundColor(.gray)
                             .font(.title2)
                     )
@@ -97,8 +93,6 @@ struct MyListingsView: View {
                         .lineLimit(1)
                     Spacer()
                     Button("Edit") {
-                        // ✅ **CHANGED HERE**: Only set selectedListing.
-                        // This will propagate to ProfileView and trigger its .sheet.
                         self.selectedListing = listing
                     }
                     .font(.subheadline)
@@ -124,19 +118,35 @@ struct MyListingsView: View {
     }
 
     private func deleteListing(_ listing: Listing) async {
-        guard let listingID = listing.id else {
-            print("Error: Listing ID is nil. Cannot delete.")
-            // Optionally, show an error to the user
-            return
-        }
+        guard let listingID = listing.id else { return }
+        let db = Firestore.firestore()
+        let storage = Storage.storage()
 
         do {
-            try await Firestore.firestore().collection("listings").document(listingID).delete()
-            print("Listing \(listingID) successfully deleted from Firestore.")
-            onRefresh() // This will trigger fetchUserListings in ProfileView
+            try await db.collection("listings").document(listingID).delete()
+
+            // Remove listingID from any user's savedListingIds
+            let usersSnapshot = try await db.collection("users").whereField("savedListingIds", arrayContains: listingID).getDocuments()
+            for document in usersSnapshot.documents {
+                try await db.collection("users").document(document.documentID).updateData([
+                    "savedListingIds": FieldValue.arrayRemove([listingID])
+                ])
+            }
+
+            // Delete images from storage
+            for urlString in listing.imageUrls {
+                if let url = URL(string: urlString),
+                   let imageName = url.pathComponents.last {
+                    let sellerId = listing.sellerId
+                    let ref = storage.reference().child("listing_images/\(sellerId)/\(imageName)")
+                    try? await ref.delete()
+                }
+            }
+
+            appViewModel.removeSavedListingId(listingID)
+            onRefresh()
         } catch {
-            print("Error deleting listing \(listingID) from Firestore: \(error.localizedDescription)")
-            // Optionally, show an error to the user
+            print("Failed to delete listing: \(error.localizedDescription)")
         }
     }
 }

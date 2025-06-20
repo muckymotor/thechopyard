@@ -78,10 +78,10 @@ class AppViewModel: ObservableObject {
     }
 
     func toggleSavedListing(_ listing: Listing) {
-        guard let userId = self.user?.uid else { return }
+        guard let sellerId = self.user?.uid else { return }
         guard let listingID = listing.id else { return }
 
-        let ref = db.collection("users").document(userId).collection("savedListings").document(listingID)
+        let ref = db.collection("users").document(sellerId).collection("savedListings").document(listingID)
 
         Task {
             if self.savedListingIds.contains(listingID) {
@@ -103,7 +103,7 @@ class AppViewModel: ObservableObject {
     }
 
     func fetchSavedListings() {
-        guard let userId = self.user?.uid else {
+        guard let sellerId = self.user?.uid else {
             self.savedListingIds = []
             savedListingsListener?.remove()
             savedListingsListener = nil
@@ -112,7 +112,7 @@ class AppViewModel: ObservableObject {
 
         savedListingsListener?.remove()
 
-        savedListingsListener = db.collection("users").document(userId).collection("savedListings")
+        savedListingsListener = db.collection("users").document(sellerId).collection("savedListings")
             .addSnapshotListener { [weak self] snapshot, error in
                 guard let self else { return }
                 if let error = error {
@@ -173,10 +173,10 @@ class AppViewModel: ObservableObject {
     }
 
     func startUnreadMessagesListener() {
-        guard let currentUserId = user?.uid else { return }
+        guard let currentsellerId = user?.uid else { return }
 
         unreadMessagesListener = db.collection("chats")
-            .whereField("visibleTo", arrayContains: currentUserId)
+            .whereField("visibleTo", arrayContains: currentsellerId)
             .addSnapshotListener { [weak self] snapshot, error in
                 guard let self else { return }
 
@@ -189,9 +189,9 @@ class AppViewModel: ObservableObject {
                         let senderId = data["lastMessageSenderId"] as? String ?? ""
                         let chatId = doc.documentID
 
-                        print("🔍 Chat \(chatId): readBy=\(readBy), senderId=\(senderId), user=\(currentUserId)")
+                        print("🔍 Chat \(chatId): readBy=\(readBy), senderId=\(senderId), user=\(currentsellerId)")
 
-                        if !readBy.contains(currentUserId), senderId != currentUserId {
+                        if !readBy.contains(currentsellerId), senderId != currentsellerId {
                             hasUnread = true
                             break
                         }
@@ -203,5 +203,10 @@ class AppViewModel: ObservableObject {
                     print("🔴 hasUnreadMessages = \(hasUnread)")
                 }
             }
+    }
+
+    // 🔧 NEW: Used to remove a deleted listing from local savedListingIds
+    func removeSavedListingId(_ id: String) {
+        savedListingIds.remove(id)
     }
 }

@@ -82,14 +82,14 @@ struct SettingsView: View {
     }
 
     private func updateUsername() {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
+        guard let sellerId = Auth.auth().currentUser?.uid else { return }
 
         isSaving = true
         errorMessage = ""
 
         let usernamesRef = db.collection("usernames").document(newUsername)
         let oldUsernameRef = db.collection("usernames").document(currentUsername)
-        let userRef = db.collection("users").document(userId)
+        let userRef = db.collection("users").document(sellerId)
 
         db.runTransaction { transaction, errorPointer in
             do {
@@ -102,7 +102,7 @@ struct SettingsView: View {
                     return nil
                 }
 
-                transaction.setData(["uid": userId], forDocument: usernamesRef)
+                transaction.setData(["uid": sellerId], forDocument: usernamesRef)
                 transaction.deleteDocument(oldUsernameRef)
                 transaction.updateData(["username": newUsername], forDocument: userRef)
 

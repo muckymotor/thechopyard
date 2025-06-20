@@ -205,14 +205,14 @@ struct CreateListingView: View {
 
     private func submitListing() async {
         isSubmitting = true
-        guard let coordinate = selectedCoordinate, let userId = Auth.auth().currentUser?.uid else {
+        guard let coordinate = selectedCoordinate, let sellerId = Auth.auth().currentUser?.uid else {
             triggerAlert(title: "Error", message: "User or location missing.")
             isSubmitting = false
             return
         }
 
         do {
-            let uploadedImageUrls = try await uploadImages(images: uiImages, userIdForPath: userId)
+            let uploadedImageUrls = try await uploadImages(images: uiImages, sellerIdForPath: sellerId)
             let listing: [String: Any] = [
                 "title": title,
                 "price": Double(price)!,
@@ -221,7 +221,7 @@ struct CreateListingView: View {
                 "latitude": coordinate.latitude,
                 "longitude": coordinate.longitude,
                 "imageUrls": uploadedImageUrls,
-                "sellerId": userId,
+                "sellerId": sellerId,
                 "category": selectedCategory,
                 "timestamp": FieldValue.serverTimestamp()
             ]
@@ -234,7 +234,7 @@ struct CreateListingView: View {
         isSubmitting = false
     }
 
-    private func uploadImages(images: [UIImage], userIdForPath: String) async throws -> [String] {
+    private func uploadImages(images: [UIImage], sellerIdForPath: String) async throws -> [String] {
         var uploadedUrls: [String] = []
         for image in images {
             guard let imageData = image.compressedJPEG() else {
@@ -242,7 +242,7 @@ struct CreateListingView: View {
             }
 
             let imageName = UUID().uuidString + ".jpg"
-            let imageRef = storage.child("listing_images/\(userIdForPath)/\(imageName)")
+            let imageRef = storage.child("listing_images/\(sellerIdForPath)/\(imageName)")
             let metadata = StorageMetadata()
             metadata.contentType = "image/jpeg"
 

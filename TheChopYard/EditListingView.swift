@@ -258,14 +258,14 @@ struct EditListingView: View {
 
     private func uploadImages(images: [UIImage]) async throws -> [String] {
         var uploadedUrls: [String] = []
-        let userId = Auth.auth().currentUser?.uid ?? "unknown_user"
+        let sellerId = Auth.auth().currentUser?.uid ?? "unknown_user"
 
         for image in images {
             guard let imageData = image.compressedJPEG() else {
                 throw NSError(domain: "EditListingView", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to convert image to JPEG data."])
             }
 
-            let imageRef = storage.child("listing_images/\(userId)/\(UUID().uuidString).jpg")
+            let imageRef = storage.child("listing_images/\(sellerId)/\(UUID().uuidString).jpg")
 
             _ = try await imageRef.putDataAsync(imageData, metadata: nil)
             let downloadURL = try await imageRef.downloadURL()

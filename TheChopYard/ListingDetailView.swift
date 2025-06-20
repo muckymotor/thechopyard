@@ -58,7 +58,7 @@ struct ListingDetailView: View {
                 }
                 .padding(.horizontal)
 
-                if let currentUserID = appViewModel.user?.uid, currentUserID != listing.sellerId {
+                if let currentsellerId = appViewModel.user?.uid, currentsellerId != listing.sellerId {
                     Button(action: handleMessageSellerTapped) {
                         Text("Message Seller")
                             .bold()
@@ -160,22 +160,22 @@ struct ListingDetailView: View {
             print("ListingDetailView: Listing ID is nil.")
             return
         }
-        guard let currentUserId = appViewModel.user?.uid, !currentUserId.isEmpty else {
+        guard let currentsellerId = appViewModel.user?.uid, !currentsellerId.isEmpty else {
             print("ListingDetailView: Current user ID not found.")
             return
         }
-        if currentUserId == listing.sellerId {
+        if currentsellerId == listing.sellerId {
             print("ListingDetailView: User cannot message themselves.")
             return
         }
 
         Task {
-            await startOrOpenChat(currentUserId: currentUserId, recipientId: listing.sellerId, listingId: listingId)
+            await startOrOpenChat(currentsellerId: currentsellerId, recipientId: listing.sellerId, listingId: listingId)
         }
     }
 
-    private func startOrOpenChat(currentUserId: String, recipientId: String, listingId: String) async {
-        let participantsArray = [currentUserId, recipientId].sorted()
+    private func startOrOpenChat(currentsellerId: String, recipientId: String, listingId: String) async {
+        let participantsArray = [currentsellerId, recipientId].sorted()
         let chatId = participantsArray.joined(separator: "_") + "_\(listingId)"
         let chatRef = db.collection("chats").document(chatId)
 
@@ -184,8 +184,8 @@ struct ListingDetailView: View {
 
             if chatSnapshot.exists {
                 var visibleTo = chatSnapshot.data()?["visibleTo"] as? [String] ?? []
-                if !visibleTo.contains(currentUserId) {
-                    visibleTo.append(currentUserId)
+                if !visibleTo.contains(currentsellerId) {
+                    visibleTo.append(currentsellerId)
                     try await chatRef.updateData([
                         "visibleTo": visibleTo,
                         "lastMessageTimestamp": FieldValue.serverTimestamp()
@@ -194,11 +194,11 @@ struct ListingDetailView: View {
                 self.chatDocumentIdToNavigate = chatId
                 self.navigateToChat = true
             } else {
-                async let currentUsername = fetchUsername(for: currentUserId)
+                async let currentUsername = fetchUsername(for: currentsellerId)
                 async let sellerUsername = fetchUsername(for: recipientId)
 
                 let participantNames = [
-                    currentUserId: try await currentUsername,
+                    currentsellerId: try await currentUsername,
                     recipientId: try await sellerUsername
                 ]
 
