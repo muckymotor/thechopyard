@@ -33,9 +33,12 @@ class AppViewModel: ObservableObject {
         }
 
         NotificationCenter.default.publisher(for: .listingUpdated)
-            .compactMap { $0.object as? String }
-            .sink { [weak self] listingID in
-                Task { await self?.refreshListing(id: listingID) }
+            .sink { [weak self] notification in
+                if let updated = notification.object as? Listing {
+                    self?.updateListing(updated)
+                } else if let listingID = notification.object as? String {
+                    Task { await self?.refreshListing(id: listingID) }
+                }
             }
             .store(in: &cancellables)
 
@@ -223,6 +226,12 @@ class AppViewModel: ObservableObject {
     // 🔧 NEW: Used to remove a deleted listing from local savedListingIds
     func removeSavedListingId(_ id: String) {
         savedListingIds.remove(id)
+    }
+
+    func updateListing(_ listing: Listing) {
+        if let index = listings.firstIndex(where: { $0.id == listing.id }) {
+            listings[index] = listing
+        }
     }
 
     func refreshListing(id: String) async {

@@ -78,9 +78,13 @@ struct HomeFeedView: View {
             print("HomeFeedView: User UID changed or view appeared, fetching initial listings.")
             await appViewModel.fetchListings(categories: selectedCategories, sortBy: selectedSort, loadMore: false)
         }
-        .onReceive(NotificationCenter.default.publisher(for: .listingUpdated).receive(on: RunLoop.main)) { _ in
-            Task {
-                await appViewModel.fetchListings(categories: selectedCategories, sortBy: selectedSort, loadMore: false)
+        .onReceive(NotificationCenter.default.publisher(for: .listingUpdated).receive(on: RunLoop.main)) { notification in
+            if let updated = notification.object as? Listing {
+                appViewModel.updateListing(updated)
+            } else {
+                Task {
+                    await appViewModel.fetchListings(categories: selectedCategories, sortBy: selectedSort, loadMore: false)
+                }
             }
         }
         .onAppear {

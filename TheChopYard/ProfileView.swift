@@ -94,9 +94,12 @@ struct ProfileView: View {
                 await loadProfileData()
             }
             .sheet(item: $selectedListing) { listingToEdit in
-                EditListingView(listing: listingToEdit, onSave: {
+                EditListingView(listing: listingToEdit) { updated in
+                    if let index = userListings.firstIndex(where: { $0.id == updated.id }) {
+                        userListings[index] = updated
+                    }
                     Task { await fetchUserListings() }
-                })
+                }
                 .environmentObject(appViewModel)
             }
             .alert("Log Out", isPresented: $showingLogoutAlert) {

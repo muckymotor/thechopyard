@@ -8,7 +8,7 @@ import Contacts
 
 @available(iOS 16.0, *)
 struct EditListingView: View {
-    var onSave: (() -> Void)? = nil
+    var onSave: ((Listing) -> Void)? = nil
 
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var appViewModel: AppViewModel
@@ -42,7 +42,7 @@ struct EditListingView: View {
     private let db = Firestore.firestore()
     private let storage = Storage.storage().reference()
 
-    init(listing: Listing, onSave: (() -> Void)? = nil) {
+    init(listing: Listing, onSave: ((Listing) -> Void)? = nil) {
         self.originalListing = listing
         self.onSave = onSave
         _title = State(initialValue: listing.title)
@@ -253,7 +253,10 @@ struct EditListingView: View {
             "imageUrls": finalImageUrlsToSave
         ]
 
-        await updateFirestore(with: updatedData)
+        await updateFirestore(with: updatedData,
+                              currentLatitude: currentLatitude,
+                              currentLongitude: currentLongitude,
+                              finalImageUrlsToSave: finalImageUrlsToSave)
     }
 
     private func uploadImages(images: [UIImage]) async throws -> [String] {
@@ -274,7 +277,11 @@ struct EditListingView: View {
         return uploadedUrls
     }
 
-    private func updateFirestore(with data: [String: Any]) async {
+    private func updateFirestore(with data: [String: Any],
+                                 currentLatitude: CLLocationDegrees,
+                                 currentLongitude: CLLocationDegrees,
+                                 finalImageUrlsToSave: [String]) async {
+
         guard let listingID = originalListing.id else {
             triggerAlert(title: "Update Error", message: "Original listing ID is missing. Cannot update.")
             isSaving = false
@@ -283,9 +290,21 @@ struct EditListingView: View {
 
         do {
             try await db.collection("listings").document(listingID).updateData(data)
+
+            var updatedListing = originalListing
+            updatedListing.title = title
+            updatedListing.price = Double(price) ?? originalListing.price
+            updatedListing.description = listingDescription.isEmpty ? nil : listingDescription
+            updatedListing.locationName = locationText.isEmpty ? nil : locationText
+            updatedListing.latitude = currentLatitude
+            updatedListing.longitude = currentLongitude
+            updatedListing.category = selectedCategory
+            updatedListing.timestamp = Date()
+            updatedListing.imageUrls = finalImageUrlsToSave
+
             DispatchQueue.main.async {
-                NotificationCenter.default.post(name: .listingUpdated, object: listingID)
-                onSave?()
+                NotificationCenter.default.post(name: .listingUpdated, object: updatedListing)
+                onSave?(updatedListing)
             }
             triggerAlert(title: "Success", message: "Listing updated successfully!")
             isSaving = false

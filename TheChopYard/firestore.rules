@@ -62,8 +62,8 @@ service cloud.firestore {
     }
 
     // ─── Users ───
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    match /users/{sellerId} {
+      allow read, write: if request.auth != null && request.auth.uid == sellerId;
     }
 
     // ─── Chats ───
