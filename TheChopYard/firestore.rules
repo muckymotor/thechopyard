@@ -1,107 +1,89 @@
+rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ─── Default fallback ───
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+
+    // ─── Listings ───
     match /listings/{listingId} {
       allow read: if true;
 
-      allow create: if request.auth != null
-        && request.resource.data.keys().hasOnly([
-          'title',
-          'price',
-          'description',
-          'locationName',
-          'latitude',
-          'longitude',
-          'imageUrls',
-          'imageAspectRatios',
-          'sellerId',
-          'timestamp',
-          'category'
-        ])
-        && request.resource.data.title is string
-        && request.resource.data.price is number
-        && request.resource.data.description is string
-        && request.resource.data.locationName is string
-        && request.resource.data.latitude is number
-        && request.resource.data.longitude is number
-        && request.resource.data.imageUrls is list
-        && request.resource.data.imageAspectRatios is list
-        && request.resource.data.imageAspectRatios.size() > 0
-        && request.resource.data.imageAspectRatios[0] is number
-        && request.resource.data.imageAspectRatios.size() == request.resource.data.imageUrls.size()
-        && !(request.resource.data.imageAspectRatios.hasAny(i >
-             !(i is number && i >= 0.3 && i <= 3.0)))
-        && request.resource.data.sellerId == request.auth.uid
-        && request.resource.data.timestamp is timestamp
-        && request.resource.data.category is string
-        && request.resource.data.category in [
-          "Air Intake & Fuel Systems",
-          "Brakes",
-          "Drivetrain & Transmission",
-          "Electrical & Wiring",
-          "Engine",
-          "Exhaust",
-          "Fenders",
-          "Frame & Chassis",
-          "Gas Tanks", "Gauge & Instruments",
-          "Handlebars & Controls", "Lighting", "Oil Tanks", "Seats", "Suspension",
-          "Tires", "Wheels/Wheel Components", "Motorcycles", "Other"
+      allow create: if request.auth != null &&
+        request.resource.data.keys().hasOnly([
+          "title", "price", "description", "locationName", "latitude", "longitude",
+          "imageUrls", "sellerId", "timestamp", "category"
+        ]) &&
+        request.resource.data.title is string &&
+        request.resource.data.price is number &&
+        request.resource.data.description is string &&
+        request.resource.data.locationName is string &&
+        request.resource.data.latitude is number &&
+        request.resource.data.longitude is number &&
+        request.resource.data.imageUrls is list &&
+        request.resource.data.imageUrls.size() > 0 &&
+        request.resource.data.sellerId == request.auth.uid &&
+        request.resource.data.timestamp is timestamp &&
+        request.resource.data.category is string &&
+        request.resource.data.category in [
+          "Air Intake & Fuel Systems", "Brakes", "Drivetrain & Transmission", "Electrical & Wiring",
+          "Engine", "Exhaust", "Fenders", "Frame & Chassis", "Gas Tanks", "Gauge & Instruments",
+          "Handlebars & Controls", "Lighting", "Oil Tanks", "Seats", "Suspension", "Tires",
+          "Wheels/Wheel Components", "Motorcycles", "Other"
         ];
 
-      allow update: if request.auth != null
-        && request.auth.uid == resource.data.sellerId
-        && request.resource.data.keys().hasOnly([
-          'title',
-          'price',
-          'description',
-          'locationName',
-          'latitude',
-          'longitude',
-          'imageUrls',
-          'imageAspectRatios',
-          'sellerId',
-          'timestamp',
-          'category'
-        ])
-        && request.resource.data.title is string
-        && request.resource.data.price is number
-        && request.resource.data.description is string
-        && request.resource.data.locationName is string
-        && request.resource.data.latitude is number
-        && request.resource.data.longitude is number
-        && request.resource.data.imageUrls is list
-        && request.resource.data.imageAspectRatios is list
-        && request.resource.data.imageAspectRatios.size() > 0
-        && request.resource.data.imageAspectRatios[0] is number
-        && request.resource.data.imageAspectRatios.size() == request.resource.data.imageUrls.size()
-        && !(request.resource.data.imageAspectRatios.hasAny(i >
-             !(i is number && i >= 0.3 && i <= 3.0)))
-        && request.resource.data.sellerId == request.auth.uid
-        && request.resource.data.timestamp is timestamp
-        && request.resource.data.category is string
-        && request.resource.data.category in [
-          "Air Intake & Fuel Systems",
-          "Brakes",
-          "Drivetrain & Transmission",
-          "Electrical & Wiring",
-          "Engine",
-          "Exhaust",
-          "Fenders",
-          "Frame & Chassis",
-          "Gas Tanks", "Gauge & Instruments",
-          "Handlebars & Controls", "Lighting", "Oil Tanks", "Seats", "Suspension",
-          "Tires", "Wheels/Wheel Components", "Motorcycles", "Other"
+      allow update: if request.auth != null &&
+        request.auth.uid == resource.data.sellerId &&
+        request.resource.data.keys().hasOnly([
+          "title", "price", "description", "locationName", "latitude", "longitude",
+          "imageUrls", "sellerId", "timestamp", "category"
+        ]) &&
+        request.resource.data.title is string &&
+        request.resource.data.price is number &&
+        request.resource.data.description is string &&
+        request.resource.data.locationName is string &&
+        request.resource.data.latitude is number &&
+        request.resource.data.longitude is number &&
+        request.resource.data.imageUrls is list &&
+        request.resource.data.imageUrls.size() > 0 &&
+        request.resource.data.sellerId == request.auth.uid &&
+        request.resource.data.timestamp is timestamp &&
+        request.resource.data.category is string &&
+        request.resource.data.category in [
+          "Air Intake & Fuel Systems", "Brakes", "Drivetrain & Transmission", "Electrical & Wiring",
+          "Engine", "Exhaust", "Fenders", "Frame & Chassis", "Gas Tanks", "Gauge & Instruments",
+          "Handlebars & Controls", "Lighting", "Oil Tanks", "Seats", "Suspension", "Tires",
+          "Wheels/Wheel Components", "Motorcycles", "Other"
         ];
 
       allow delete: if request.auth != null && request.auth.uid == resource.data.sellerId;
     }
 
-    match /users/{sellerId} {
-      allow read, write: if request.auth != null && request.auth.uid == sellerId;
+    // ─── Users ───
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // ─── Chats ───
     match /chats/{chatId} {
-      allow read, write: if request.auth != null && request.auth.uid in resource.data.participants;
+      allow read: if request.auth != null && request.auth.uid in resource.data.participants;
+
+      allow update: if request.auth != null &&
+        request.auth.uid in resource.data.participants &&
+        (
+          (
+            request.resource.data.lastMessage is string &&
+            request.resource.data.lastMessageTimestamp is timestamp &&
+            request.resource.data.lastMessageSenderId is string &&
+            request.resource.data.readBy is list &&
+            request.resource.data.readBy.hasOnly([value is string]) &&
+            request.resource.data.visibleTo is list
+          )
+          ||
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(["readBy"])
+        );
 
       match /messages/{messageId} {
         allow read, write: if request.auth != null &&
@@ -109,10 +91,13 @@ service cloud.firestore {
       }
     }
 
+    // ─── Usernames ───
     match /usernames/{username} {
       allow read: if true;
-      allow write: if request.resource.data.keys().hasOnly(["reserved"]) && request.resource.data.reserved == true;
-      allow write: if request.auth != null && request.resource.data.uid == request.auth.uid;
+      allow write: if request.auth != null &&
+        request.resource.data.keys().hasOnly(["uid", "reserved"]) &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.reserved == true;
     }
   }
 }
