@@ -1,8 +1,3 @@
-// ProfileView.swift
-
-
-
-
 import SwiftUI
 import FirebaseAuth
 import FirebaseFirestore
