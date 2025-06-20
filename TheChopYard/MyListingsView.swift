@@ -60,9 +60,9 @@ struct MyListingsView: View {
         } message: { listing in
             Text("Are you sure you want to delete \"\(listing.title)\"? This cannot be undone.")
         }
-        .onReceive(NotificationCenter.default.publisher(for: .listingUpdated)) { _ in
-                    onRefresh()
-                }
+        .onReceive(NotificationCenter.default.publisher(for: .listingUpdated).receive(on: RunLoop.main)) { _ in
+            onRefresh()
+        }
     }
 
     @ViewBuilder

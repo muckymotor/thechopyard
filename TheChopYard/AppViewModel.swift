@@ -1,6 +1,7 @@
 import SwiftUI
 import FirebaseAuth
 import FirebaseFirestore
+import Combine
 
 @MainActor
 class AppViewModel: ObservableObject {
@@ -16,6 +17,7 @@ class AppViewModel: ObservableObject {
     private var savedListingsListener: ListenerRegistration?
     private var unreadMessagesListener: ListenerRegistration?
     private var lastDocumentSnapshot: DocumentSnapshot?
+    private var cancellables = Set<AnyCancellable>()
 
     private let listingsCollection = Firestore.firestore().collection("listings")
     private let itemsPerPage = 10
@@ -30,22 +32,31 @@ class AppViewModel: ObservableObject {
             startUnreadMessagesListener()
         }
 
+        NotificationCenter.default.publisher(for: .listingUpdated)
+            .compactMap { $0.object as? String }
+            .sink { [weak self] listingID in
+                Task { await self?.refreshListing(id: listingID) }
+            }
+            .store(in: &cancellables)
+
         self.authStateListenerHandle = Auth.auth().addStateDidChangeListener { [weak self] _, user in
             guard let self else { return }
-            self.user = user
-            self.isLoggedIn = user != nil
-            self.hasUnreadMessages = false
+            Task { @MainActor in
+                self.user = user
+                self.isLoggedIn = user != nil
+                self.hasUnreadMessages = false
 
-            self.savedListingsListener?.remove()
-            self.unreadMessagesListener?.remove()
+                self.savedListingsListener?.remove()
+                self.unreadMessagesListener?.remove()
 
-            if user != nil {
-                self.fetchSavedListings()
-                self.startUnreadMessagesListener()
-            } else {
-                self.savedListingIds = []
-                self.savedListingsListener = nil
-                self.unreadMessagesListener = nil
+                if user != nil {
+                    self.fetchSavedListings()
+                    self.startUnreadMessagesListener()
+                } else {
+                    self.savedListingIds = []
+                    self.savedListingsListener = nil
+                    self.unreadMessagesListener = nil
+                }
             }
         }
     }
@@ -70,11 +81,13 @@ class AppViewModel: ObservableObject {
             self.errorMessage = "Error signing out: \(signOutError.localizedDescription)"
         }
 
-        self.user = nil
-        self.isLoggedIn = false
-        self.savedListingIds = []
-        self.listings = []
-        self.lastDocumentSnapshot = nil
+        Task { @MainActor in
+            self.user = nil
+            self.isLoggedIn = false
+            self.savedListingIds = []
+            self.listings = []
+            self.lastDocumentSnapshot = nil
+        }
     }
 
     func toggleSavedListing(_ listing: Listing) {
@@ -87,14 +100,14 @@ class AppViewModel: ObservableObject {
             if self.savedListingIds.contains(listingID) {
                 do {
                     try await ref.delete()
-                    self.savedListingIds.remove(listingID)
+                    await MainActor.run { self.savedListingIds.remove(listingID) }
                 } catch {
                     print("Error removing saved listing \(listingID): \(error.localizedDescription)")
                 }
             } else {
                 do {
                     try await ref.setData(["savedAt": Timestamp()])
-                    self.savedListingIds.insert(listingID)
+                    await MainActor.run { self.savedListingIds.insert(listingID) }
                 } catch {
                     print("Error saving listing \(listingID): \(error.localizedDescription)")
                 }
@@ -115,13 +128,15 @@ class AppViewModel: ObservableObject {
         savedListingsListener = db.collection("users").document(sellerId).collection("savedListings")
             .addSnapshotListener { [weak self] snapshot, error in
                 guard let self else { return }
-                if let error = error {
-                    print("Error fetching saved listings IDs: \(error.localizedDescription)")
-                    self.savedListingIds = []
-                    return
+                Task { @MainActor in
+                    if let error = error {
+                        print("Error fetching saved listings IDs: \(error.localizedDescription)")
+                        self.savedListingIds = []
+                        return
+                    }
+                    let ids = Set(snapshot?.documents.map { $0.documentID } ?? [])
+                    self.savedListingIds = ids
                 }
-                let ids = Set(snapshot?.documents.map { $0.documentID } ?? [])
-                self.savedListingIds = ids
             }
     }
 
@@ -208,5 +223,16 @@ class AppViewModel: ObservableObject {
     // 🔧 NEW: Used to remove a deleted listing from local savedListingIds
     func removeSavedListingId(_ id: String) {
         savedListingIds.remove(id)
+    }
+
+    func refreshListing(id: String) async {
+        do {
+            let snapshot = try await db.collection("listings").document(id).getDocument()
+            if let updated = try? snapshot.data(as: Listing.self), let idx = listings.firstIndex(where: { $0.id == id }) {
+                listings[idx] = updated
+            }
+        } catch {
+            print("Failed to refresh listing \(id): \(error.localizedDescription)")
+        }
     }
 }
