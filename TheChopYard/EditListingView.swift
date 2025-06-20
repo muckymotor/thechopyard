@@ -283,6 +283,7 @@ struct EditListingView: View {
 
         do {
             try await db.collection("listings").document(listingID).updateData(data)
+            NotificationCenter.default.post(name: .listingUpdated, object: nil)
             triggerAlert(title: "Success", message: "Listing updated successfully!")
             isSaving = false
             onSave?()

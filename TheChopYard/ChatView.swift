@@ -9,7 +9,6 @@ struct Message: Identifiable, Codable {
     let timestamp: Date
 }
 
-
 @MainActor
 struct ChatView: View {
     let chatId: String

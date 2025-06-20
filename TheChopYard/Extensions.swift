@@ -1,4 +1,3 @@
-// In Date+Extensions.swift
 import Foundation
 
 extension Date {
@@ -11,4 +10,8 @@ extension Date {
         }
         return formatter.localizedString(for: self, relativeTo: now)
     }
+}
+
+extension Notification.Name {
+    static let listingUpdated = Notification.Name("listingUpdated")
 }

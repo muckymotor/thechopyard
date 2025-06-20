@@ -43,7 +43,6 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
-				Untitled.swift,
 			);
 			target = 7670A84B2DC708F200A5BD9F /* TheChopYard */;
 		};

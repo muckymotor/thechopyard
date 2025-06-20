@@ -2,6 +2,7 @@ import SwiftUI
 import FirebaseFirestore
 import FirebaseStorage
 import SDWebImageSwiftUI
+import Combine
 
 struct MyListingsView: View {
     @Binding var userListings: [Listing]
@@ -59,6 +60,9 @@ struct MyListingsView: View {
         } message: { listing in
             Text("Are you sure you want to delete \"\(listing.title)\"? This cannot be undone.")
         }
+        .onReceive(NotificationCenter.default.publisher(for: .listingUpdated)) { _ in
+                    onRefresh()
+                }
     }
 
     @ViewBuilder

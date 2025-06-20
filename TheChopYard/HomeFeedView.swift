@@ -1,5 +1,7 @@
 import SwiftUI
 import CoreLocation // Keep for LocationManager and distance calculations
+import Combine
+import FirebaseFirestore
 // Assuming ListingRow is defined elsewhere and works with the Listing model
 // Assuming LocationManager is correctly defined and provides location updates
 
@@ -76,6 +78,11 @@ struct HomeFeedView: View {
             print("HomeFeedView: User UID changed or view appeared, fetching initial listings.")
             await appViewModel.fetchListings(categories: selectedCategories, sortBy: selectedSort, loadMore: false)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .listingUpdated)) { _ in
+                    Task {
+                        await appViewModel.fetchListings(categories: selectedCategories, sortBy: selectedSort, loadMore: false)
+                    }
+                }
         .onAppear {
             // Redundant if .task(id: appViewModel.user?.uid) handles initial load well.
             // Kept for safety if listings are empty and user is already set.
