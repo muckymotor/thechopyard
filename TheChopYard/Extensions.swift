@@ -14,4 +14,5 @@ extension Date {
 
 extension Notification.Name {
     static let listingUpdated = Notification.Name("listingUpdated")
+    static let homeTabSelected = Notification.Name("homeTabSelected")
 }

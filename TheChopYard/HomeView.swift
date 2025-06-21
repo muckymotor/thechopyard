@@ -10,6 +10,9 @@ struct HomeView: View {
                 HomeFeedView()
                     .tabItem {
                         Label("Home", systemImage: "house")
+                            .onTapGesture {
+                                NotificationCenter.default.post(name: .homeTabSelected, object: nil)
+                            }
                     }
                     .tag(0)
 
@@ -38,6 +41,13 @@ struct HomeView: View {
                         Label("Profile", systemImage: "person.crop.circle")
                     }
                     .tag(4)
+            }
+
+            // Notify when Home tab is selected
+            .onChange(of: selectedTab) { newValue in
+                if newValue == 0 {
+                    NotificationCenter.default.post(name: .homeTabSelected, object: nil)
+                }
             }
 
             // Red dot overlay on Messages tab
