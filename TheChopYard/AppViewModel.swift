@@ -231,15 +231,21 @@ class AppViewModel: ObservableObject {
     func updateListing(_ listing: Listing) {
         if let index = listings.firstIndex(where: { $0.id == listing.id }) {
             listings[index] = listing
-            listings.sort { $0.timestamp > $1.timestamp }
+        } else {
+            // If the listing wasn't already in the current page, insert it so
+            // that other views can reflect the latest data without a full refetch.
+            listings.insert(listing, at: 0)
         }
+
+        // Keep listings sorted by newest timestamp after the update/insert.
+        listings.sort { $0.timestamp > $1.timestamp }
     }
 
     func refreshListing(id: String) async {
         do {
             let snapshot = try await db.collection("listings").document(id).getDocument()
-            if let updated = try? snapshot.data(as: Listing.self), let idx = listings.firstIndex(where: { $0.id == id }) {
-                listings[idx] = updated
+            if let updated = try? snapshot.data(as: Listing.self) {
+                await MainActor.run { self.updateListing(updated) }
             }
         } catch {
             print("Failed to refresh listing \(id): \(error.localizedDescription)")
