@@ -12,6 +12,7 @@ struct ListingDetailView: View {
     @State private var navigateToChat = false
     @State private var chatDocumentIdToNavigate: String?
     @StateObject private var localLocationManager = LocationManager()
+    @State private var listingListener: ListenerRegistration?
 
     private let db = Firestore.firestore()
 
@@ -19,46 +20,9 @@ struct ListingDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 imageCarousel
+                detailsSection
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(listing.title).font(.title).bold()
-                    Text("$\(String(format: "%.2f", listing.price))").font(.title2)
-
-                    HStack {
-                        Text("Seller:").bold()
-                        Text(sellerUsername).foregroundColor(sellerUsername == "Loading..." || sellerUsername.starts(with: "Unknown") ? .gray : .primary)
-                    }
-
-                    if let locationName = listing.locationName, !locationName.isEmpty {
-                        HStack {
-                            Text("Location:").bold()
-                            Text(locationName).foregroundColor(.gray)
-                        }
-                    }
-
-                    if let category = listing.category, !category.isEmpty {
-                        HStack {
-                            Text("Category:").bold()
-                            Text(category).foregroundColor(.gray)
-                        }
-                    }
-
-                    HStack {
-                        Text("Posted:").bold()
-                        Text(listing.timestamp, style: .relative).foregroundColor(.gray) + Text(" ago").foregroundColor(.gray)
-                    }
-
-                    if let description = listing.description, !description.isEmpty {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Description:").bold()
-                            Text(description).foregroundColor(.primary)
-                        }
-                        .padding(.top, 8)
-                    }
-                }
-                .padding(.horizontal)
-
-                if let currentsellerId = appViewModel.user?.uid, currentsellerId != listing.sellerId {
+                if let currentId = appViewModel.user?.uid, currentId != listing.sellerId {
                     Button(action: handleMessageSellerTapped) {
                         Text("Message Seller")
                             .bold()
@@ -77,60 +41,108 @@ struct ListingDetailView: View {
         .task {
             await fetchSellerUsername()
             localLocationManager.requestPermissionAndFetchLocation()
-            await fetchLatestListing()
+            startListeningToListing()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .listingUpdated).receive(on: RunLoop.main)) { notification in
-            if let updated = notification.object as? Listing, updated.id == listing.id {
-                listing = updated
-            } else if let id = notification.object as? String, id == listing.id {
-                Task { await fetchLatestListing() }
-            }
+        .onDisappear {
+            listingListener?.remove()
         }
         .navigationDestination(isPresented: $navigateToChat) {
             if let chatId = chatDocumentIdToNavigate {
-                ChatView(chatId: chatId, sellerUsername: self.sellerUsername)
+                ChatView(chatId: chatId, sellerUsername: sellerUsername)
                     .environmentObject(appViewModel)
             } else {
-                Text("Error: Could not open chat. Chat ID missing.")
+                Text("Error: Could not open chat.")
             }
         }
     }
 
+    private func startListeningToListing() {
+        guard let id = listing.id else { return }
+
+        listingListener?.remove()
+
+        listingListener = db.collection("listings").document(id)
+            .addSnapshotListener { snapshot, error in
+                guard let doc = snapshot, let updated = try? doc.data(as: Listing.self) else { return }
+                DispatchQueue.main.async {
+                    self.listing = updated
+                    appViewModel.updateListing(updated)
+                }
+            }
+    }
+
     private var imageCarousel: some View {
         let padding: CGFloat = 16
-        let imageSide = UIScreen.main.bounds.width - (padding * 2)
+        let side = UIScreen.main.bounds.width - (padding * 2)
 
         return TabView {
             if listing.imageUrls.isEmpty {
-                placeholderImage(size: imageSide)
+                placeholderImage(size: side)
             } else {
-                ForEach(listing.imageUrls, id: \.self) { urlString in
-                    if let url = URL(string: urlString) {
-                        AsyncImage(url: url) { phase in
+                ForEach(listing.imageUrls, id: \.self) { url in
+                    if let u = URL(string: url) {
+                        AsyncImage(url: u) { phase in
                             switch phase {
-                            case .success(let image):
-                                image.resizable().scaledToFill()
-                            case .failure:
-                                placeholderImage(size: imageSide, icon: "exclamationmark.triangle.fill")
-                            case .empty:
-                                ProgressView().frame(width: imageSide, height: imageSide)
-                            @unknown default:
-                                EmptyView()
+                            case .success(let image): image.resizable().scaledToFill()
+                            case .failure: placeholderImage(size: side, icon: "exclamationmark.triangle.fill")
+                            case .empty: ProgressView().frame(width: side, height: side)
+                            @unknown default: EmptyView()
                             }
                         }
-                        .frame(width: imageSide, height: imageSide)
+                        .frame(width: side, height: side)
                         .clipped()
                         .cornerRadius(10)
                     } else {
-                        placeholderImage(size: imageSide)
+                        placeholderImage(size: side)
                     }
                 }
             }
         }
-        .frame(height: imageSide)
+        .frame(height: side)
         .tabViewStyle(PageTabViewStyle())
         .indexViewStyle(.page(backgroundDisplayMode: .automatic))
         .padding(.vertical)
+    }
+
+    private var detailsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(listing.title).font(.title).bold()
+            Text("$\(String(format: "%.2f", listing.price))").font(.title2)
+
+            HStack {
+                Text("Seller:").bold()
+                Text(sellerUsername).foregroundColor(.gray)
+            }
+
+            if let location = listing.locationName, !location.isEmpty {
+                HStack {
+                    Text("Location:").bold()
+                    Text(location).foregroundColor(.gray)
+                }
+            }
+
+            if let category = listing.category, !category.isEmpty {
+                HStack {
+                    Text("Category:").bold()
+                    Text(category).foregroundColor(.gray)
+                }
+            }
+
+            HStack {
+                Text("Posted:").bold()
+                Text(listing.timestamp, style: .relative).foregroundColor(.gray)
+                + Text(" ago").foregroundColor(.gray)
+            }
+
+            if let desc = listing.description, !desc.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Description:").bold()
+                    Text(desc).foregroundColor(.primary)
+                }
+                .padding(.top, 8)
+            }
+        }
+        .padding(.horizontal)
     }
 
     @ViewBuilder
@@ -148,50 +160,40 @@ struct ListingDetailView: View {
 
     private func fetchSellerUsername() async {
         guard !listing.sellerId.isEmpty else {
-            self.sellerUsername = "Unknown (Invalid Seller ID)"
+            self.sellerUsername = "Unknown"
             return
         }
         do {
-            let document = try await db.collection("users").document(listing.sellerId).getDocument()
-            if let data = document.data(), let username = data["username"] as? String {
+            let doc = try await db.collection("users").document(listing.sellerId).getDocument()
+            if let data = doc.data(), let username = data["username"] as? String {
                 self.sellerUsername = username
             } else {
                 self.sellerUsername = "Unknown"
             }
         } catch {
-            self.sellerUsername = "Unknown (Error)"
+            self.sellerUsername = "Unknown"
         }
     }
 
     private func handleMessageSellerTapped() {
-        guard let listingId = listing.id else {
-            print("ListingDetailView: Listing ID is nil.")
-            return
-        }
-        guard let currentsellerId = appViewModel.user?.uid, !currentsellerId.isEmpty else {
-            print("ListingDetailView: Current user ID not found.")
-            return
-        }
-        if currentsellerId == listing.sellerId {
-            print("ListingDetailView: User cannot message themselves.")
-            return
-        }
+        guard let listingId = listing.id,
+              let currentId = appViewModel.user?.uid,
+              currentId != listing.sellerId else { return }
 
         Task {
-            await startOrOpenChat(currentsellerId: currentsellerId, recipientId: listing.sellerId, listingId: listingId)
+            await startOrOpenChat(currentsellerId: currentId, recipientId: listing.sellerId, listingId: listingId)
         }
     }
 
     private func startOrOpenChat(currentsellerId: String, recipientId: String, listingId: String) async {
-        let participantsArray = [currentsellerId, recipientId].sorted()
-        let chatId = participantsArray.joined(separator: "_") + "_\(listingId)"
+        let chatId = [currentsellerId, recipientId].sorted().joined(separator: "_") + "_\(listingId)"
         let chatRef = db.collection("chats").document(chatId)
 
         do {
-            let chatSnapshot = try await chatRef.getDocument()
+            let chatDoc = try await chatRef.getDocument()
 
-            if chatSnapshot.exists {
-                var visibleTo = chatSnapshot.data()?["visibleTo"] as? [String] ?? []
+            if chatDoc.exists {
+                var visibleTo = chatDoc.data()?["visibleTo"] as? [String] ?? []
                 if !visibleTo.contains(currentsellerId) {
                     visibleTo.append(currentsellerId)
                     try await chatRef.updateData([
@@ -199,21 +201,19 @@ struct ListingDetailView: View {
                         "lastMessageTimestamp": FieldValue.serverTimestamp()
                     ])
                 }
-                self.chatDocumentIdToNavigate = chatId
-                self.navigateToChat = true
+                chatDocumentIdToNavigate = chatId
+                navigateToChat = true
             } else {
                 async let currentUsername = fetchUsername(for: currentsellerId)
                 async let sellerUsername = fetchUsername(for: recipientId)
-
                 let participantNames = [
                     currentsellerId: try await currentUsername,
                     recipientId: try await sellerUsername
                 ]
-
-                let newChatData: [String: Any] = [
-                    "participants": participantsArray,
+                try await chatRef.setData([
+                    "participants": [currentsellerId, recipientId].sorted(),
                     "participantNames": participantNames,
-                    "visibleTo": participantsArray,
+                    "visibleTo": [currentsellerId, recipientId],
                     "listingId": listingId,
                     "listingTitle": listing.title,
                     "listingImageUrl": listing.imageUrls.first ?? "",
@@ -221,35 +221,20 @@ struct ListingDetailView: View {
                     "lastMessageSenderId": "",
                     "lastMessageTimestamp": FieldValue.serverTimestamp(),
                     "createdAt": FieldValue.serverTimestamp()
-                ]
-
-                try await chatRef.setData(newChatData)
-                self.chatDocumentIdToNavigate = chatId
-                self.navigateToChat = true
+                ])
+                chatDocumentIdToNavigate = chatId
+                navigateToChat = true
             }
         } catch {
-            print("ListingDetailView: Failed to create or fetch chat: \(error.localizedDescription)")
+            print("Chat error: \(error.localizedDescription)")
         }
     }
 
     private func fetchUsername(for uid: String) async throws -> String {
         let doc = try await db.collection("users").document(uid).getDocument()
         guard let data = doc.data(), let username = data["username"] as? String else {
-            throw NSError(domain: "FetchUsername", code: 404, userInfo: [NSLocalizedDescriptionKey: "Username not found for UID: \(uid)"])
+            throw NSError(domain: "FetchUsername", code: 404)
         }
         return username
-    }
-
-    private func fetchLatestListing() async {
-        guard let id = listing.id else { return }
-        do {
-            let snapshot = try await db.collection("listings").document(id).getDocument()
-            if let updated = try? snapshot.data(as: Listing.self) {
-                listing = updated
-                appViewModel.updateListing(updated)
-            }
-        } catch {
-            print("ListingDetailView: Failed to fetch latest listing: \(error.localizedDescription)")
-        }
     }
 }
