@@ -82,6 +82,8 @@ struct ListingDetailView: View {
         .onReceive(NotificationCenter.default.publisher(for: .listingUpdated).receive(on: RunLoop.main)) { notification in
             if let updated = notification.object as? Listing, updated.id == listing.id {
                 listing = updated
+            } else if let id = notification.object as? String, id == listing.id {
+                Task { await fetchLatestListing() }
             }
         }
         .navigationDestination(isPresented: $navigateToChat) {

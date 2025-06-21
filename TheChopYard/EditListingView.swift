@@ -303,7 +303,8 @@ struct EditListingView: View {
             updatedListing.imageUrls = finalImageUrlsToSave
 
             DispatchQueue.main.async {
-                NotificationCenter.default.post(name: .listingUpdated, object: updatedListing)
+                appViewModel.updateListing(updatedListing)
+                NotificationCenter.default.post(name: .listingUpdated, object: listingID)
                 onSave?(updatedListing)
             }
             triggerAlert(title: "Success", message: "Listing updated successfully!")
