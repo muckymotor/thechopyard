@@ -48,7 +48,7 @@ struct ListingDetailView: View {
         }
         .navigationDestination(isPresented: $navigateToChat) {
             if let chatId = chatDocumentIdToNavigate {
-                ChatView(chatId: chatId, sellerUsername: sellerUsername)
+                ChatView(chatId: chatId, sellerUsername: sellerUsername, otherUserId: listing.sellerId)
                     .environmentObject(appViewModel)
             } else {
                 Text("Error: Could not open chat.")

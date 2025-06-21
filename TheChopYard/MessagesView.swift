@@ -135,7 +135,7 @@ struct MessagesView: View {
             }
             .navigationTitle("Messages")
             .navigationDestination(for: ChatThread.self) { thread in
-                ChatView(chatId: thread.id, sellerUsername: thread.displayName)
+                ChatView(chatId: thread.id, sellerUsername: thread.displayName, otherUserId: thread.othersellerId)
                     .environmentObject(appViewModel)
             }
             .onAppear {
