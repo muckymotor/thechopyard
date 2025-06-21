@@ -231,8 +231,14 @@ class AppViewModel: ObservableObject {
     func updateListing(_ listing: Listing) {
         if let index = listings.firstIndex(where: { $0.id == listing.id }) {
             listings[index] = listing
-            listings.sort { $0.timestamp > $1.timestamp }
+        } else {
+            // If the listing wasn't already in the current page, insert it so
+            // that other views can reflect the latest data without a full refetch.
+            listings.insert(listing, at: 0)
         }
+
+        // Keep listings sorted by newest timestamp after the update/insert.
+        listings.sort { $0.timestamp > $1.timestamp }
     }
 
     func refreshListing(id: String) async {
