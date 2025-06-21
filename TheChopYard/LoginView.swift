@@ -21,11 +21,11 @@ struct LoginView: View {
                 Image("chopyard_logo")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 300, height: 100)
+                    .frame(width: 400, height: 400)
                     .padding(.top, 40)
 
                 VStack(spacing: 16) {
-                    TextField("Email or Username", text: $emailOrUsername)
+                    TextField("Email", text: $emailOrUsername)
                         .textContentType(.username)
                         .autocapitalization(.none)
                         .padding()

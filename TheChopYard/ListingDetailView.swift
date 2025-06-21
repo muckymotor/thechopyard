@@ -49,7 +49,7 @@ struct ListingDetailView: View {
         }
         .navigationDestination(isPresented: $navigateToChat) {
             if let chatId = chatDocumentIdToNavigate {
-                ChatView(chatId: chatId, sellerUsername: sellerUsername)
+                ChatView(chatId: chatId, sellerUsername: sellerUsername, otherUserId: listing.sellerId)
                     .environmentObject(appViewModel)
             } else {
                 Text("Error: Could not open chat.")
@@ -116,6 +116,15 @@ struct ListingDetailView: View {
             }
             
             HStack {
+                Text("Posted:").bold()
+                Text(listing.timestamp, style: .relative).foregroundColor(.gray)
+                + Text(" ago").foregroundColor(.gray)
+            }
+
+            .font(.footnote)
+            .foregroundColor(.gray)
+            
+            HStack {
                 Text("Seller:").bold()
                 Text(sellerUsername).foregroundColor(.gray)
             }
@@ -134,21 +143,12 @@ struct ListingDetailView: View {
                 }
             }
 
-            HStack {
-                Text("Posted:").bold()
-                Text(listing.timestamp, style: .relative).foregroundColor(.gray)
-                + Text(" ago").foregroundColor(.gray)
-            }
-
-            .font(.footnote)
-            .foregroundColor(.gray)
-
             if let desc = listing.description, !desc.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Description:").bold()
                     Text(desc).foregroundColor(.primary)
                 }
-                .padding(.top, 8)
+                .padding(.top, 4)
             }
         }
         .padding(.horizontal)

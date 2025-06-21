@@ -35,14 +35,7 @@ struct ProfileView: View {
                         }
                     }
                 } else {
-                    Section(header: Text("Account")) {
-                        HStack {
-                            Text("Username")
-                            Spacer()
-                            Text(username.isEmpty ? "Not set" : username)
-                                .foregroundColor(.gray)
-                        }
-                    }
+                    
                     
                     Section(header: Text("My Content")) {
                         NavigationLink {
