@@ -10,6 +10,9 @@ struct HomeView: View {
                 HomeFeedView()
                     .tabItem {
                         Label("Home", systemImage: "house")
+                            .onTapGesture {
+                                NotificationCenter.default.post(name: .homeTabSelected, object: nil)
+                            }
                     }
                     .tag(0)
 
