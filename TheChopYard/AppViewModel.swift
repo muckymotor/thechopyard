@@ -244,8 +244,8 @@ class AppViewModel: ObservableObject {
     func refreshListing(id: String) async {
         do {
             let snapshot = try await db.collection("listings").document(id).getDocument()
-            if let updated = try? snapshot.data(as: Listing.self), let idx = listings.firstIndex(where: { $0.id == id }) {
-                listings[idx] = updated
+            if let updated = try? snapshot.data(as: Listing.self) {
+                await MainActor.run { self.updateListing(updated) }
             }
         } catch {
             print("Failed to refresh listing \(id): \(error.localizedDescription)")

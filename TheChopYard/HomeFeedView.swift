@@ -81,6 +81,8 @@ struct HomeFeedView: View {
         .onReceive(NotificationCenter.default.publisher(for: .listingUpdated).receive(on: RunLoop.main)) { notification in
             if let updated = notification.object as? Listing {
                 appViewModel.updateListing(updated)
+            } else if let id = notification.object as? String {
+                Task { await appViewModel.refreshListing(id: id) }
             } else {
                 Task {
                     await appViewModel.fetchListings(categories: selectedCategories, sortBy: selectedSort, loadMore: false)
