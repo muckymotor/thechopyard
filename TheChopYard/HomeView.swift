@@ -40,6 +40,13 @@ struct HomeView: View {
                     .tag(4)
             }
 
+            // Notify when Home tab is selected
+            .onChange(of: selectedTab) { newValue in
+                if newValue == 0 {
+                    NotificationCenter.default.post(name: .homeTabSelected, object: nil)
+                }
+            }
+
             // Red dot overlay on Messages tab
             if appViewModel.hasUnreadMessages && selectedTab != 1 {
                 GeometryReader { geometry in
