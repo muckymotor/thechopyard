@@ -9,11 +9,13 @@ import CoreLocation
 @available(iOS 16.0, *)
 struct ProfileView: View {
     @EnvironmentObject var appViewModel: AppViewModel
+    @EnvironmentObject var locationManager: LocationManager
     @State private var userListings: [Listing] = []
     @State private var selectedListing: Listing?
     @State private var isLoading = true
     @State private var username: String = ""
     @State private var showingLogoutAlert = false
+    @State private var showingDeleteAlert = false
     @State private var errorAlertItem: ErrorAlertItem? // This will now refer to the shared definition
 
     private let db = Firestore.firestore()
@@ -52,6 +54,7 @@ struct ProfileView: View {
                         NavigationLink {
                             SavedListingsView()
                                 .environmentObject(appViewModel)
+                                .environmentObject(locationManager)
                         } label: {
                             Label("Saved Listings", systemImage: "heart")
                         }
@@ -74,6 +77,13 @@ struct ProfileView: View {
                             showingLogoutAlert = true
                         } label: {
                             Text("Log Out")
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .foregroundColor(.red)
+                        }
+                        Button(role: .destructive) {
+                            showingDeleteAlert = true
+                        } label: {
+                            Text("Delete Account")
                                 .frame(maxWidth: .infinity, alignment: .center)
                                 .foregroundColor(.red)
                         }
@@ -100,6 +110,14 @@ struct ProfileView: View {
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("Are you sure you want to log out?")
+            }
+            .alert("Delete Account", isPresented: $showingDeleteAlert) {
+                Button("Delete", role: .destructive) {
+                    deleteAccount()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This will remove your account and listings permanently.")
             }
             .alert(item: $errorAlertItem) { item in
                 Alert(title: Text(item.title), message: Text(item.message), dismissButton: .default(Text("OK")))
@@ -151,6 +169,17 @@ struct ProfileView: View {
             print("Error fetching user listings: \(error.localizedDescription)")
             self.userListings = []
             self.errorAlertItem = ErrorAlertItem(message: "Could not load your listings: \(error.localizedDescription)")
+        }
+    }
+
+    private func deleteAccount() {
+        guard let user = Auth.auth().currentUser else { return }
+        user.delete { error in
+            if let error = error {
+                self.errorAlertItem = ErrorAlertItem(message: "Failed to delete account: \(error.localizedDescription)")
+            } else {
+                appViewModel.signOutCurrentUser()
+            }
         }
     }
 }

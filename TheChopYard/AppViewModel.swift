@@ -42,6 +42,14 @@ class AppViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
+        NotificationCenter.default.publisher(for: .didReceiveFCMToken)
+            .sink { [weak self] notification in
+                if let token = notification.object as? String {
+                    self?.updateFCMToken(token)
+                }
+            }
+            .store(in: &cancellables)
+
         self.authStateListenerHandle = Auth.auth().addStateDidChangeListener { [weak self] _, user in
             guard let self else { return }
             Task { @MainActor in
@@ -229,6 +237,13 @@ class AppViewModel: ObservableObject {
     // 🔧 NEW: Used to remove a deleted listing from local savedListingIds
     func removeSavedListingId(_ id: String) {
         savedListingIds.remove(id)
+    }
+
+    func updateFCMToken(_ token: String) {
+        guard let uid = user?.uid else { return }
+        db.collection("users").document(uid).updateData([
+            "fcmTokens": FieldValue.arrayUnion([token])
+        ])
     }
 
     func updateListing(_ listing: Listing) {

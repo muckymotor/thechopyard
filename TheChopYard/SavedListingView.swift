@@ -9,7 +9,7 @@ import CoreLocation
 
 struct SavedListingsView: View {
     @EnvironmentObject var appViewModel: AppViewModel
-    @StateObject private var locationManager = LocationManager()
+    @EnvironmentObject var locationManager: LocationManager
     @State private var savedListings: [Listing] = []
     @State private var isLoading = false
     @State private var errorAlertItem: ErrorAlertItem? // This will now refer to the shared definition

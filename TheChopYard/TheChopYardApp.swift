@@ -1,27 +1,46 @@
 import SwiftUI
 import FirebaseCore
 import FirebaseFirestore
-import FirebaseAnalytics //
+import FirebaseAnalytics
+import FirebaseMessaging
+import UserNotifications
 
-class AppDelegate: NSObject, UIApplicationDelegate { //
-    func application( //
+class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate {
+    func application(
         _ application: UIApplication,
-        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil //
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
-        // Configure Firebase
-        FirebaseApp.configure() //
-        
-        // Enable Firestore offline persistence
-        let db = Firestore.firestore() //
-        let settings = db.settings // Get current settings
-        settings.isPersistenceEnabled = true //
-        // settings.cacheSizeBytes = FirestoreCacheSizeUnlimited // Optional: for specific cache size
-        db.settings = settings //
+        FirebaseApp.configure()
 
-        // Optional: Log Firebase Analytics app open event
-        Analytics.logEvent(AnalyticsEventAppOpen, parameters: nil) //
+        // Firestore offline persistence
+        let db = Firestore.firestore()
+        let settings = db.settings
+        settings.isPersistenceEnabled = true
+        db.settings = settings
 
-        return true //
+        // Log app open
+        Analytics.logEvent(AnalyticsEventAppOpen, parameters: nil)
+
+        // Register for push notifications
+        UNUserNotificationCenter.current().delegate = self
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
+            if granted {
+                DispatchQueue.main.async { application.registerForRemoteNotifications() }
+            }
+        }
+
+        Messaging.messaging().delegate = self
+
+        return true
+    }
+
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        Messaging.messaging().apnsToken = deviceToken
+    }
+
+    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+        guard let token = fcmToken else { return }
+        NotificationCenter.default.post(name: .didReceiveFCMToken, object: token)
     }
 }
 
@@ -29,11 +48,16 @@ class AppDelegate: NSObject, UIApplicationDelegate { //
 struct TheChopYardApp: App { //
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate //
     @StateObject private var appViewModel = AppViewModel() //
+    @StateObject private var locationManager = LocationManager()
 
     var body: some Scene {
-        WindowGroup { //
+        WindowGroup {
             ContentView()
-                .environmentObject(appViewModel) //
+                .environmentObject(appViewModel)
+                .environmentObject(locationManager)
+                .onAppear {
+                    locationManager.requestPermissionAndFetchLocation()
+                }
         }
     }
 }
