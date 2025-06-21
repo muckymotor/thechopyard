@@ -77,6 +77,7 @@ struct ListingDetailView: View {
         .task {
             await fetchSellerUsername()
             localLocationManager.requestPermissionAndFetchLocation()
+            await fetchLatestListing()
         }
         .onReceive(NotificationCenter.default.publisher(for: .listingUpdated).receive(on: RunLoop.main)) { notification in
             if let updated = notification.object as? Listing, updated.id == listing.id {
@@ -235,5 +236,18 @@ struct ListingDetailView: View {
             throw NSError(domain: "FetchUsername", code: 404, userInfo: [NSLocalizedDescriptionKey: "Username not found for UID: \(uid)"])
         }
         return username
+    }
+
+    private func fetchLatestListing() async {
+        guard let id = listing.id else { return }
+        do {
+            let snapshot = try await db.collection("listings").document(id).getDocument()
+            if let updated = try? snapshot.data(as: Listing.self) {
+                listing = updated
+                appViewModel.updateListing(updated)
+            }
+        } catch {
+            print("ListingDetailView: Failed to fetch latest listing: \(error.localizedDescription)")
+        }
     }
 }
