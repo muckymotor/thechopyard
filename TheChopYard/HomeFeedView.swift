@@ -64,6 +64,12 @@ struct HomeFeedView: View {
         .onDisappear {
             listingListener?.remove()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .homeTabSelected)) { _ in
+            Task {
+                await refreshListings()
+                startLiveListingListener()
+            }
+        }
     }
 
     private func startLiveListingListener() {
@@ -80,6 +86,14 @@ struct HomeFeedView: View {
                 appViewModel.listings = updatedListings
             }
         }
+    }
+
+    private func refreshListings() async {
+        await appViewModel.fetchListings(
+            categories: selectedCategories,
+            sortBy: selectedSort,
+            loadMore: false
+        )
     }
 
     private var listingsScrollView: some View {
