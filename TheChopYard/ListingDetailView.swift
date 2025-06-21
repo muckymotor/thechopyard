@@ -49,7 +49,7 @@ struct ListingDetailView: View {
         }
         .navigationDestination(isPresented: $navigateToChat) {
             if let chatId = chatDocumentIdToNavigate {
-                ChatView(chatId: chatId, sellerUsername: sellerUsername, otherUserId: listing.sellerId)
+                ChatView(chatId: chatId, sellerUsername: sellerUsername)
                     .environmentObject(appViewModel)
             } else {
                 Text("Error: Could not open chat.")
@@ -110,6 +110,11 @@ struct ListingDetailView: View {
             Text(listing.title).font(.title).bold()
             Text("$\(String(format: "%.2f", listing.price))").font(.title2)
 
+            HStack(spacing: 16) {
+                Label("\(listing.viewCount ?? 0)", systemImage: "eye")
+                Label("\(listing.saveCount ?? 0)", systemImage: "heart")
+            }
+            
             HStack {
                 Text("Seller:").bold()
                 Text(sellerUsername).foregroundColor(.gray)
@@ -135,10 +140,6 @@ struct ListingDetailView: View {
                 + Text(" ago").foregroundColor(.gray)
             }
 
-            HStack(spacing: 16) {
-                Label("\(listing.viewCount ?? 0)", systemImage: "eye")
-                Label("\(listing.saveCount ?? 0)", systemImage: "heart")
-            }
             .font(.footnote)
             .foregroundColor(.gray)
 
