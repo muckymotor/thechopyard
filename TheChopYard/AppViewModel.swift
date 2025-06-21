@@ -231,6 +231,7 @@ class AppViewModel: ObservableObject {
     func updateListing(_ listing: Listing) {
         if let index = listings.firstIndex(where: { $0.id == listing.id }) {
             listings[index] = listing
+            listings.sort { $0.timestamp > $1.timestamp }
         }
     }
 
