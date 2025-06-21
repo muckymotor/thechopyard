@@ -32,12 +32,7 @@ struct EditListingView: View {
     @State private var alertTitle = "Error"
     @State private var isShowingLocationSearch = false
 
-    private let categories = [
-        "Air Intake & Fuel Systems", "Brakes", "Drivetrain & Transmission", "Electrical & Wiring",
-        "Engine", "Exhaust", "Fenders", "Frame & Chassis", "Gas Tanks", "Gauge & Instruments",
-        "Handlebars & Controls", "Lighting", "Oil Tanks", "Seats", "Suspension", "Tires",
-        "Wheels/Wheel Components", "Motorcycles", "Other"
-    ]
+    private let categories = HomeFeedView.categories
 
     private let db = Firestore.firestore()
     private let storage = Storage.storage().reference()
@@ -240,19 +235,24 @@ struct EditListingView: View {
         }
 
         do {
-            let docRef = db.collection("listings").document(listingID)
-            try await docRef.updateData(updatedData)
+            try await db.collection("listings").document(listingID).updateData(updatedData)
 
-            let snapshot = try await docRef.getDocument()
-            if let updated = try? snapshot.data(as: Listing.self) {
-                DispatchQueue.main.async {
-                    appViewModel.updateListing(updated)
-                    NotificationCenter.default.post(name: .listingUpdated, object: listingID)
-                    onSave?(updated)
-                    dismiss()
-                }
-            } else {
-                triggerAlert(title: "Update Error", message: "Failed to decode updated listing.")
+            var updated = originalListing
+            updated.title = title
+            updated.price = Double(price) ?? originalListing.price
+            updated.description = listingDescription.isEmpty ? nil : listingDescription
+            updated.locationName = locationText.isEmpty ? nil : locationText
+            updated.latitude = selectedCoordinate?.latitude ?? originalListing.latitude
+            updated.longitude = selectedCoordinate?.longitude ?? originalListing.longitude
+            updated.category = selectedCategory
+            updated.timestamp = Date()
+            updated.imageUrls = finalImageUrls
+
+            DispatchQueue.main.async {
+                appViewModel.updateListing(updated)
+                NotificationCenter.default.post(name: .listingUpdated, object: listingID)
+                onSave?(updated)
+                dismiss()
             }
         } catch {
             triggerAlert(title: "Firestore Error", message: error.localizedDescription)

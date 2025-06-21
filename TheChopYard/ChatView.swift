@@ -13,39 +13,52 @@ struct Message: Identifiable, Codable {
 struct ChatView: View {
     let chatId: String
     let sellerUsername: String
+
     @EnvironmentObject var appViewModel: AppViewModel
     @State private var messages: [Message] = []
     @State private var newMessage = ""
     @State private var listener: ListenerRegistration?
 
     private var db: Firestore { Firestore.firestore() }
-    private var currentsellerId: String? { appViewModel.user?.uid }
+    private var currentUserId: String? { appViewModel.user?.uid }
 
     var body: some View {
-        VStack {
+        VStack(spacing: 0) {
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 8) {
+                    LazyVStack(alignment: .leading, spacing: 12) {
                         ForEach(messages) { message in
-                            HStack {
-                                if message.senderId == currentsellerId {
+                            HStack(alignment: .bottom, spacing: 8) {
+                                if message.senderId == currentUserId {
                                     Spacer()
-                                    Text(message.text)
-                                        .padding()
-                                        .background(Color.blue.opacity(0.2))
-                                        .cornerRadius(10)
+                                    VStack(alignment: .trailing, spacing: 4) {
+                                        Text(message.text)
+                                            .padding(12)
+                                            .background(Color.accentColor)
+                                            .foregroundColor(.white)
+                                            .cornerRadius(16)
+                                        Text(shortTimestamp(message.timestamp))
+                                            .font(.caption2)
+                                            .foregroundColor(.gray)
+                                    }
                                 } else {
-                                    Text(message.text)
-                                        .padding()
-                                        .background(Color.gray.opacity(0.2))
-                                        .cornerRadius(10)
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(message.text)
+                                            .padding(12)
+                                            .background(Color.gray.opacity(0.2))
+                                            .cornerRadius(16)
+                                        Text(shortTimestamp(message.timestamp))
+                                            .font(.caption2)
+                                            .foregroundColor(.gray)
+                                    }
                                     Spacer()
                                 }
                             }
                             .id(message.id)
                         }
                     }
-                    .padding()
+                    .padding(.vertical)
+                    .padding(.horizontal, 12)
                 }
                 .onChange(of: messages.count) { _ in
                     if let last = messages.last?.id {
@@ -56,14 +69,24 @@ struct ChatView: View {
                 }
             }
 
-            HStack {
-                TextField("Message...", text: $newMessage)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
+            Divider()
 
-                Button("Send") {
-                    sendMessage()
+            HStack(spacing: 12) {
+                TextField("Message...", text: $newMessage, axis: .vertical)
+                    .padding(10)
+                    .background(Color(.secondarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .lineLimit(1...4)
+
+                Button(action: sendMessage) {
+                    Image(systemName: "paperplane.fill")
+                        .font(.system(size: 20))
+                        .padding(10)
+                        .background(Color.accentColor)
+                        .foregroundColor(.white)
+                        .clipShape(Circle())
                 }
-                .disabled(newMessage.trimmingCharacters(in: .whitespaces).isEmpty)
+                .disabled(newMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             .padding()
         }
@@ -75,13 +98,12 @@ struct ChatView: View {
         }
         .onDisappear {
             listener?.remove()
-            listener = nil
         }
     }
 
     private func listenToMessages() {
         listener?.remove()
-        guard let currentsellerId else { return }
+        guard let currentUserId else { return }
 
         listener = db.collection("chats").document(chatId)
             .collection("messages")
@@ -89,17 +111,16 @@ struct ChatView: View {
             .addSnapshotListener { snapshot, error in
                 guard let docs = snapshot?.documents else { return }
                 self.messages = docs.compactMap { try? $0.data(as: Message.self) }
-
-                // 🟢 Ensure chat is marked read when new messages arrive
                 self.markChatAsRead()
             }
     }
 
-
     private func sendMessage() {
-        guard let currentsellerId else { return }
+        guard let currentUserId else { return }
+        let trimmed = newMessage.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
 
-        let message = Message(id: nil, text: newMessage, senderId: currentsellerId, timestamp: Date())
+        let message = Message(id: nil, text: trimmed, senderId: currentUserId, timestamp: Date())
         let messageRef = db.collection("chats").document(chatId).collection("messages").document()
         let chatRef = db.collection("chats").document(chatId)
 
@@ -108,8 +129,8 @@ struct ChatView: View {
             chatRef.updateData([
                 "lastMessage": message.text,
                 "lastMessageTimestamp": message.timestamp,
-                "lastMessageSenderId": currentsellerId,
-                "readBy": [currentsellerId] // Reset readBy to only the sender
+                "lastMessageSenderId": currentUserId,
+                "readBy": [currentUserId]
             ])
             newMessage = ""
         } catch {
@@ -118,10 +139,17 @@ struct ChatView: View {
     }
 
     private func markChatAsRead() {
-        guard let currentsellerId else { return }
+        guard let currentUserId else { return }
         let chatRef = db.collection("chats").document(chatId)
         chatRef.updateData([
-            "readBy": FieldValue.arrayUnion([currentsellerId])
+            "readBy": FieldValue.arrayUnion([currentUserId])
         ])
+    }
+
+    private func shortTimestamp(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
+        return formatter.string(from: date)
     }
 }
