@@ -223,7 +223,9 @@ struct CreateListingView: View {
                 "imageUrls": uploadedImageUrls,
                 "sellerId": sellerId,
                 "category": selectedCategory,
-                "timestamp": FieldValue.serverTimestamp()
+                "timestamp": FieldValue.serverTimestamp(),
+                "viewCount": 0,
+                "saveCount": 0
             ]
             try await db.collection("listings").addDocument(data: listing)
             triggerAlert(title: "Success", message: "Listing submitted successfully!")

@@ -42,6 +42,7 @@ struct ListingDetailView: View {
             await fetchSellerUsername()
             localLocationManager.requestPermissionAndFetchLocation()
             startListeningToListing()
+            incrementViewCount()
         }
         .onDisappear {
             listingListener?.remove()
@@ -133,6 +134,13 @@ struct ListingDetailView: View {
                 Text(listing.timestamp, style: .relative).foregroundColor(.gray)
                 + Text(" ago").foregroundColor(.gray)
             }
+
+            HStack(spacing: 16) {
+                Label("\(listing.viewCount ?? 0)", systemImage: "eye")
+                Label("\(listing.saveCount ?? 0)", systemImage: "heart")
+            }
+            .font(.footnote)
+            .foregroundColor(.gray)
 
             if let desc = listing.description, !desc.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
@@ -236,5 +244,11 @@ struct ListingDetailView: View {
             throw NSError(domain: "FetchUsername", code: 404)
         }
         return username
+    }
+
+    private func incrementViewCount() {
+        guard let id = listing.id else { return }
+        db.collection("listings").document(id)
+            .updateData(["viewCount": FieldValue.increment(Int64(1))])
     }
 }

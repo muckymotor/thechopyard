@@ -98,12 +98,14 @@ class AppViewModel: ObservableObject {
         guard let listingID = listing.id else { return }
 
         let ref = db.collection("users").document(sellerId).collection("savedListings").document(listingID)
+        let listingRef = db.collection("listings").document(listingID)
 
         Task {
             if self.savedListingIds.contains(listingID) {
                 do {
                     try await ref.delete()
                     await MainActor.run { self.savedListingIds.remove(listingID) }
+                    try? await listingRef.updateData(["saveCount": FieldValue.increment(Int64(-1))])
                 } catch {
                     print("Error removing saved listing \(listingID): \(error.localizedDescription)")
                 }
@@ -111,6 +113,7 @@ class AppViewModel: ObservableObject {
                 do {
                     try await ref.setData(["savedAt": Timestamp()])
                     await MainActor.run { self.savedListingIds.insert(listingID) }
+                    try? await listingRef.updateData(["saveCount": FieldValue.increment(Int64(1))])
                 } catch {
                     print("Error saving listing \(listingID): \(error.localizedDescription)")
                 }
