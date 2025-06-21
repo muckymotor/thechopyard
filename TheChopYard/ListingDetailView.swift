@@ -5,7 +5,7 @@ import CoreLocation
 
 @MainActor
 struct ListingDetailView: View {
-    let listing: Listing
+    @State var listing: Listing
     @EnvironmentObject var appViewModel: AppViewModel
 
     @State private var sellerUsername: String = "Loading..."
@@ -77,6 +77,11 @@ struct ListingDetailView: View {
         .task {
             await fetchSellerUsername()
             localLocationManager.requestPermissionAndFetchLocation()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .listingUpdated).receive(on: RunLoop.main)) { notification in
+            if let updated = notification.object as? Listing, updated.id == listing.id {
+                listing = updated
+            }
         }
         .navigationDestination(isPresented: $navigateToChat) {
             if let chatId = chatDocumentIdToNavigate {
