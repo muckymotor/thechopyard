@@ -15,6 +15,8 @@ struct Listing: Identifiable, Decodable, Equatable, Hashable {
     var timestamp: Date
     var description: String?
     var category: String?
+    var viewCount: Int?
+    var saveCount: Int?
 
     var clLocation: CLLocation {
         CLLocation(latitude: latitude, longitude: longitude)
@@ -31,7 +33,9 @@ struct Listing: Identifiable, Decodable, Equatable, Hashable {
                lhs.sellerId == rhs.sellerId &&
                lhs.timestamp == rhs.timestamp &&
                lhs.description == rhs.description &&
-               lhs.category == rhs.category
+               lhs.category == rhs.category &&
+               lhs.viewCount == rhs.viewCount &&
+               lhs.saveCount == rhs.saveCount
     }
 
     func formattedDistance(from userLocation: CLLocation) -> String {

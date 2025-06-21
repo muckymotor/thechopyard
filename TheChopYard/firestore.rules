@@ -14,7 +14,7 @@ service cloud.firestore {
       allow create: if request.auth != null &&
         request.resource.data.keys().hasOnly([
           "title", "price", "description", "locationName", "latitude", "longitude",
-          "imageUrls", "sellerId", "timestamp", "category"
+          "imageUrls", "sellerId", "timestamp", "category", "viewCount", "saveCount"
         ]) &&
         request.resource.data.title is string &&
         request.resource.data.price is number &&
@@ -32,13 +32,15 @@ service cloud.firestore {
           "Engine", "Exhaust", "Fenders", "Frame & Chassis", "Gas Tanks", "Gauge & Instruments",
           "Handlebars & Controls", "Lighting", "Oil Tanks", "Seats", "Suspension", "Tires",
           "Wheels/Wheel Components", "Motorcycles", "Other"
-        ];
+        ] &&
+        request.resource.data.viewCount is number &&
+        request.resource.data.saveCount is number;
 
       allow update: if request.auth != null &&
         request.auth.uid == resource.data.sellerId &&
         request.resource.data.keys().hasOnly([
           "title", "price", "description", "locationName", "latitude", "longitude",
-          "imageUrls", "sellerId", "timestamp", "category"
+          "imageUrls", "sellerId", "timestamp", "category", "viewCount", "saveCount"
         ]) &&
         request.resource.data.title is string &&
         request.resource.data.price is number &&
@@ -56,7 +58,9 @@ service cloud.firestore {
           "Engine", "Exhaust", "Fenders", "Frame & Chassis", "Gas Tanks", "Gauge & Instruments",
           "Handlebars & Controls", "Lighting", "Oil Tanks", "Seats", "Suspension", "Tires",
           "Wheels/Wheel Components", "Motorcycles", "Other"
-        ];
+        ] &&
+        request.resource.data.viewCount is number &&
+        request.resource.data.saveCount is number;
 
       allow delete: if request.auth != null && request.auth.uid == resource.data.sellerId;
     }

@@ -1,6 +1,7 @@
 import SwiftUI
 import FirebaseFirestore
 import FirebaseAuth
+import UIKit
 
 struct Message: Identifiable, Codable {
     @DocumentID var id: String?
@@ -35,6 +36,11 @@ struct ChatView: View {
                                     VStack(alignment: .trailing, spacing: 4) {
                                         Text(message.text)
                                             .padding(12)
+                                            .contextMenu {
+                                                Button("Copy") {
+                                                    UIPasteboard.general.string = message.text
+                                                }
+                                            }
                                             .background(Color.accentColor)
                                             .foregroundColor(.white)
                                             .cornerRadius(16)
@@ -46,6 +52,11 @@ struct ChatView: View {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(message.text)
                                             .padding(12)
+                                            .contextMenu {
+                                                Button("Copy") {
+                                                    UIPasteboard.general.string = message.text
+                                                }
+                                            }
                                             .background(Color.gray.opacity(0.2))
                                             .cornerRadius(16)
                                         Text(shortTimestamp(message.timestamp))

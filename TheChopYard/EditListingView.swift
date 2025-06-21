@@ -31,6 +31,7 @@ struct EditListingView: View {
     @State private var alertMessage = ""
     @State private var alertTitle = "Error"
     @State private var isShowingLocationSearch = false
+    @State private var showDeleteAlert = false
 
     private let categories = HomeFeedView.categories
 
@@ -85,6 +86,13 @@ struct EditListingView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(role: .destructive) {
+                        showDeleteAlert = true
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                }
             }
         }
         .sheet(isPresented: $isShowingLocationSearch) {
@@ -104,6 +112,14 @@ struct EditListingView: View {
             Button("OK") {}
         } message: {
             Text(alertMessage)
+        }
+        .alert("Delete Listing", isPresented: $showDeleteAlert) {
+            Button("Delete", role: .destructive) {
+                Task { await deleteListing() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Are you sure you want to delete this listing? This cannot be undone.")
         }
     }
 
@@ -221,7 +237,9 @@ struct EditListingView: View {
             "sellerId": originalListing.sellerId,
             "category": selectedCategory,
             "timestamp": FieldValue.serverTimestamp(),
-            "imageUrls": finalImageUrls
+            "imageUrls": finalImageUrls,
+            "viewCount": originalListing.viewCount ?? 0,
+            "saveCount": originalListing.saveCount ?? 0
         ]
 
         await updateFirestore(updatedData: updatedData, finalImageUrls: finalImageUrls)
@@ -309,5 +327,24 @@ struct EditListingView: View {
             print("Geocoding failed: \(error)")
         }
         return address
+    }
+
+    private func deleteListing() async {
+        guard let listingID = originalListing.id else { return }
+        do {
+            try await db.collection("listings").document(listingID).delete()
+
+            for urlString in originalListing.imageUrls {
+                if let path = try? Storage.storage().reference(forURL: urlString).fullPath {
+                    try? await Storage.storage().reference(withPath: path).delete()
+                }
+            }
+
+            appViewModel.removeSavedListingId(listingID)
+            NotificationCenter.default.post(name: .listingUpdated, object: listingID)
+            dismiss()
+        } catch {
+            triggerAlert(title: "Delete Error", message: error.localizedDescription)
+        }
     }
 }
