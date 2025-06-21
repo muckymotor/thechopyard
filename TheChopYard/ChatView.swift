@@ -13,6 +13,7 @@ struct Message: Identifiable, Codable {
 struct ChatView: View {
     let chatId: String
     let sellerUsername: String
+    let otherUserId: String
 
     @EnvironmentObject var appViewModel: AppViewModel
     @State private var messages: [Message] = []
@@ -130,7 +131,8 @@ struct ChatView: View {
                 "lastMessage": message.text,
                 "lastMessageTimestamp": message.timestamp,
                 "lastMessageSenderId": currentUserId,
-                "readBy": [currentUserId]
+                "readBy": [currentUserId],
+                "visibleTo": FieldValue.arrayUnion([currentUserId, otherUserId])
             ])
             newMessage = ""
         } catch {
