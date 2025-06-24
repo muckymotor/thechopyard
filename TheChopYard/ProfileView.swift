@@ -3,12 +3,10 @@ import FirebaseAuth
 import FirebaseFirestore
 import CoreLocation
 
-// NO ErrorAlertItem struct definition here anymore.
-// It will use the definition from AppUtilities.swift (or your shared file).
-
 @available(iOS 16.0, *)
 struct ProfileView: View {
     @EnvironmentObject var appViewModel: AppViewModel
+    @EnvironmentObject var locationManager: LocationManager
     @State private var userListings: [Listing] = []
     @State private var selectedListing: Listing?
     @State private var isLoading = true
@@ -17,11 +15,6 @@ struct ProfileView: View {
     @State private var errorAlertItem: ErrorAlertItem? // This will now refer to the shared definition
 
     private let db = Firestore.firestore()
-
-    // ... (rest of your ProfileView code remains the same as you provided in the last turn)
-    // The body, loadProfileData, fetchUsername, fetchUserListings methods
-    // DO NOT need to change again for this specific error.
-    // Just ensure the duplicate struct definition is removed from this file.
 
     var body: some View {
         NavigationStack {
@@ -52,6 +45,7 @@ struct ProfileView: View {
                         NavigationLink {
                             SavedListingsView()
                                 .environmentObject(appViewModel)
+                                .environmentObject(locationManager)
                         } label: {
                             Label("Saved Listings", systemImage: "heart")
                         }
@@ -153,4 +147,5 @@ struct ProfileView: View {
             self.errorAlertItem = ErrorAlertItem(message: "Could not load your listings: \(error.localizedDescription)")
         }
     }
+
 }

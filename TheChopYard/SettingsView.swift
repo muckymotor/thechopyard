@@ -10,6 +10,10 @@ struct SettingsView: View {
     @State private var isAvailable: Bool? = nil
     @State private var isSaving = false
     @State private var errorMessage = ""
+    @State private var showingDeleteAlert = false
+    @State private var errorAlertItem: ErrorAlertItem?
+
+    @EnvironmentObject var appViewModel: AppViewModel
 
     private let db = Firestore.firestore()
 
@@ -47,9 +51,27 @@ struct SettingsView: View {
                 }
                 .disabled(!canSave)
             }
+            Section {
+                Button(role: .destructive) {
+                    showingDeleteAlert = true
+                } label: {
+                    Text("Delete Account")
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .foregroundColor(.red)
+                }
+            }
         }
         .navigationTitle("Settings")
         .onAppear(perform: validateUsername)
+        .alert("Delete Account", isPresented: $showingDeleteAlert) {
+            Button("Delete", role: .destructive) { deleteAccount() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will remove your account and listings permanently.")
+        }
+        .alert(item: $errorAlertItem) { item in
+            Alert(title: Text(item.title), message: Text(item.message), dismissButton: .default(Text("OK")))
+        }
     }
 
     private var canSave: Bool {
@@ -119,6 +141,17 @@ struct SettingsView: View {
                 } else {
                     onUsernameUpdated()
                 }
+            }
+        }
+    }
+
+    private func deleteAccount() {
+        guard let user = Auth.auth().currentUser else { return }
+        user.delete { error in
+            if let error = error {
+                self.errorAlertItem = ErrorAlertItem(message: "Failed to delete account: \(error.localizedDescription)")
+            } else {
+                appViewModel.signOutCurrentUser()
             }
         }
     }
