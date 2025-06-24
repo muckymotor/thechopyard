@@ -60,3 +60,37 @@ exports.cleanUpUserData = functions.auth.user().onDelete(async (user) => {
   await Promise.all(deleteTasks);
   console.log(`Cleanup complete for user ${uid}`);
 });
+
+exports.notifyNewMessage = functions.firestore
+  .document('chats/{chatId}/messages/{messageId}')
+  .onCreate(async (snap, context) => {
+    const message = snap.data();
+    const chatId = context.params.chatId;
+
+    const chatDoc = await admin.firestore().collection('chats').doc(chatId).get();
+    const participants = chatDoc.data().participants || [];
+    const senderId = message.senderId;
+
+    const recipientIds = participants.filter((id) => id !== senderId);
+    const tokens = [];
+
+    for (const uid of recipientIds) {
+      const userDoc = await admin.firestore().collection('users').doc(uid).get();
+      const userTokens = userDoc.data().fcmTokens || [];
+      tokens.push(...userTokens);
+    }
+
+    if (tokens.length === 0) return null;
+
+    const payload = {
+      notification: {
+        title: chatDoc.data().listingTitle || 'New Message',
+        body: message.text,
+      },
+      data: {
+        chatId,
+      },
+    };
+
+    return admin.messaging().sendToDevice(tokens, payload);
+  });
