@@ -1,23 +1,13 @@
-// SavedListingsView.swift
-
 import SwiftUI
 import FirebaseFirestore
 import CoreLocation
 
-// NO ErrorAlertItem struct definition here anymore.
-// It will use the definition from AppUtilities.swift (or your shared file).
-
 struct SavedListingsView: View {
     @EnvironmentObject var appViewModel: AppViewModel
-    @StateObject private var locationManager = LocationManager()
+    @EnvironmentObject var locationManager: LocationManager
     @State private var savedListings: [Listing] = []
     @State private var isLoading = false
-    @State private var errorAlertItem: ErrorAlertItem? // This will now refer to the shared definition
-
-    // ... (rest of your SavedListingsView code remains the same as you provided in the last turn)
-    // The body, listingsScrollView, fetchFullSavedListings, clientSideSortedListings methods
-    // DO NOT need to change again for this specific error.
-    // Just ensure the duplicate/commented-out struct definition is removed from this file.
+    @State private var errorAlertItem: ErrorAlertItem?
 
     var body: some View {
         NavigationView {
