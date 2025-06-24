@@ -1,5 +1,4 @@
-// In AppUtilities.swift (or ErrorAlertItem.swift)
-import Foundation // For UUID
+import Foundation
 
 struct ErrorAlertItem: Identifiable {
     let id = UUID()

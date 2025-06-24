@@ -4,7 +4,7 @@ import FirebaseFirestore
 
 struct HomeFeedView: View {
     @EnvironmentObject var appViewModel: AppViewModel
-    @StateObject private var locationManager = LocationManager()
+    @EnvironmentObject var locationManager: LocationManager
 
     @State private var selectedRadius: Double = 210.0
     @State private var selectedCategories: Set<String> = []
